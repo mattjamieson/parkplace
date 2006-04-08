@@ -28,7 +28,7 @@ module ParkPlace
     def self.create
         ParkPlace::Models.create_schema
     end
-    def self.run
+    def self.serve
         require 'mongrel'
         require 'mongrel/camping'
 
@@ -53,5 +53,5 @@ module ParkPlace
 end
 
 if __FILE__ == $0
-    ParkPlace.run
+    ParkPlace.serve
 end
