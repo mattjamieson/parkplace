@@ -43,6 +43,7 @@ module ParkPlace
         NoSuchBucket: [404, The specified bucket does not exist.]
         NoSuchKey: [404, The specified key does not exist.]
         NotImplemented: [501, A header you provided implies functionality that is not implemented.]
+        NotModified: [304, The request resource has not been modified.]
         PreconditionFailed: [412, At least one of the pre-conditions you specified did not hold.]
         RequestTimeout: [400, Your socket connection to the server was not read from or written to within the timeout period.]
         RequestTorrentOfBucketError: [400, Requesting the torrent file of a bucket is not permitted.]

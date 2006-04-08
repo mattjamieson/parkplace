@@ -113,16 +113,29 @@ module ParkPlace
             def head(bucket_name, oid)
                 @slot = Bucket.find_root(bucket_name).find_slot(oid)
                 only_can_read @slot
+
+                etag = @slot.etag
+                since = Time.httpdate(@env.HTTP_IF_MODIFIED_SINCE) rescue nil
+                raise NotModified if since and @slot.updated_at <= since
+                since = Time.httpdate(@env.HTTP_IF_UNMODIFIED_SINCE) rescue nil
+                raise PreconditionFailed if since and @slot.updated_at > since
+                raise PreconditionFailed if @env.HTTP_IF_MATCH and etag != @env.HTTP_IF_MATCH
+                raise NotModified if @env.HTTP_IF_NONE_MATCH and etag == @env.HTTP_IF_NONE_MATCH
+
                 headers = {}
                 if @slot.meta
                     headers = @slot.meta.inject({}) { |hsh, (k, v)| hsh["x-amz-meta-#{k}"] = v; hsh }
                 end
-                r(200, '', headers.merge('ETag' => @slot.etag, 'Content-Type' => 'text/plain',
-                                         'Content-Length' => (@slot.obj || '').size))
+                r(200, '', headers.merge('ETag' => etag, 'Content-Type' => 'text/plain',
+                       'Last-Modified' => @slot.updated_at.httpdate, 'Content-Length' => (@slot.obj || '').size))
             end
             def get(bucket_name, oid)
                 head(bucket_name, oid)
-                @slot.obj
+                if @env.HTTP_RANGE  # ugh, parse ranges
+                    raise NotImplemented
+                else
+                    @slot.obj
+                end
             end
             def delete(bucket_name, oid)
                 bucket = Bucket.find_root bucket_name
