@@ -25,30 +25,32 @@ module ParkPlace
     READABLE_BY_AUTH = 0040
     WRITABLE_BY_AUTH = 0020
 
-    def self.create
-        ParkPlace::Models.create_schema
-    end
-    def self.serve
-        require 'mongrel'
-        require 'mongrel/camping'
-
-        ParkPlace::Models::Base.establish_connection :adapter => 'sqlite3', :database => 'park.db'
-        ParkPlace::Models::Base.logger = Logger.new('camping.log')
-        ParkPlace::Models::Base.threaded_connections=false
-        ParkPlace.create
-
-        # Use the Configurator as an example rather than Mongrel::Camping.start
-        config = Mongrel::Configurator.new :host => "0.0.0.0" do
-            listener :port => 3002 do
-                uri "/", :handler => Mongrel::Camping::CampingHandler.new(ParkPlace)
-                uri "/favicon", :handler => Mongrel::Error404Handler.new("")
-                trap("INT") { stop }
-                run
-            end
+    class << self
+        def create
+            ParkPlace::Models.create_schema
         end
+        def serve
+            require 'mongrel'
+            require 'mongrel/camping'
 
-        puts "** ParkPlace example is running at http://localhost:3002/"
-        config.join
+            ParkPlace::Models::Base.establish_connection :adapter => 'sqlite3', :database => 'park.db'
+            ParkPlace::Models::Base.logger = Logger.new('camping.log')
+            ParkPlace::Models::Base.threaded_connections=false
+            ParkPlace.create
+
+            # Use the Configurator as an example rather than Mongrel::Camping.start
+            config = Mongrel::Configurator.new :host => "0.0.0.0" do
+                listener :port => 3002 do
+                    uri "/", :handler => Mongrel::Camping::CampingHandler.new(ParkPlace)
+                    uri "/favicon", :handler => Mongrel::Error404Handler.new("")
+                    trap("INT") { stop }
+                    run
+                end
+            end
+
+            puts "** ParkPlace example is running at http://localhost:3002/"
+            config.join
+        end
     end
 end
 
