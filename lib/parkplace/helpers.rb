@@ -55,8 +55,10 @@ module ParkPlace
         if @input.Signature and Time.at(@input.Expires.to_i) >= Time.now
             key_s, secret_s, date_s = @input.AWSAccessKeyId, @input.Signature, @input.Expires
         end
+        uri = @env.PATH_INFO
+        uri += "?" + @env.QUERY_STRING if RESOURCE_TYPES.include?(@env.QUERY_STRING)
         canonical = [@env.REQUEST_METHOD, @env.HTTP_CONTENT_MD5, @env.HTTP_CONTENT_TYPE, 
-            date_s, @env.PATH_INFO]
+            date_s, uri]
         @amz.sort.each do |k, v|
             canonical[-1,0] = "x-amz-#{k}:#{v}"
         end

@@ -13,6 +13,7 @@ require 'parkplace/controllers'
 require 'parkplace/models'
 
 module ParkPlace
+    RESOURCE_TYPES = %w[acl torrent]
     CANNED_ACLS = {
         'private' => 0600,
         'public-read' => 0644,
