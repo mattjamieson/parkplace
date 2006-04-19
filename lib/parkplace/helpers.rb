@@ -30,6 +30,16 @@ module ParkPlace
         return Base64::encode64(Digest::SHA1.digest(outer)).chomp
     end
 
+    def generate_secret
+        abc = %{ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz} 
+        (1..40).map { abc[rand(abc.size),1] }.join
+    end
+
+    def generate_key
+        abc = %{ABCDEF0123456789} 
+        (1..20).map { abc[rand(abc.size),1] }.join
+    end
+
     # Kick out anonymous users.
     def only_authorized; raise ParkPlace::AccessDenied unless @user end
     # Kick out any users which do not have read access to a certain resource.
@@ -38,6 +48,8 @@ module ParkPlace
     def only_can_write bit; raise ParkPlace::AccessDenied unless bit.writable_by? @user end
     # Kick out any users which do not own a certain resource.
     def only_owner_of bit; raise ParkPlace::AccessDenied unless bit.owned_by? @user end
+    # Kick out any non-superusers
+    def only_superusers; raise ParkPlace::AccessDenied unless @user.superuser? end
 end
 
 module ParkPlace::S3

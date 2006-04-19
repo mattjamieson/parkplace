@@ -9,7 +9,7 @@ end
 module ParkPlace::UserSession
     def service(*a)
         if @state.user_id
-            @user = ParkPlace::Models::User.find :first, @state.user_id
+            @user = ParkPlace::Models::User.find @state.user_id
         end
         if @user
             super(*a)
@@ -34,16 +34,17 @@ module ParkPlace::Controllers
             render :control, "Login", :login
         end
         def post
-            user = User.find_by_login @input.login
-            if user
-                if user.password == hmac_sha1( @input.password, user.secret )
-                    @user = user
+            @login = true
+            @user = User.find_by_login @input.login
+            if @user
+                if @user.password == hmac_sha1( @input.password, @user.secret )
                     @state.user_id = @user.id
                     return redirect(CBuckets)
                 else
                     @user.errors.add(:password, 'is incorrect')
                 end
             else
+                @user = User.new
                 @user.errors.add(:login, 'not found')
             end
             render :control, "Login", :login
@@ -118,22 +119,47 @@ module ParkPlace::Controllers
     class CUsers < R '/control/users'
         login_required
         def get
-            @users = User.find :all, :conditions => ['deleted != 1']
+            only_superusers
+            @usero = User.new
+            @users = User.find :all, :conditions => ['deleted != 1'], :order => 'login'
             render :control, "User List", :users
+        end
+        def post
+            only_superusers
+            @usero = User.new @input.user.merge(:activated_at => Time.now)
+            if @usero.valid?
+                @usero.save
+                redirect CUsers
+            else
+                render :control, "New User", :user
+            end
         end
     end
 
-    class CUser < R '/control/user/(.+)'
+    class CUser < R '/control/users/(.+)'
         login_required
         def get(login)
-            @user = User.find_by_login login
-            render :control, "Profile for #{@user.login}", :profile
+            only_superusers
+            @usero = User.find_by_login login
+            render :control, "#{@usero.login}", :profile
+        end
+        def post(login)
+            only_superusers
+            @usero = User.find_by_login login
+            @usero.update_attributes(@input.user)
+            render :control, "#{@usero.login}", :profile
         end
     end
 
     class CProfile < R '/control/profile'
         login_required
         def get
+            @usero = @user
+            render :control, "Your Profile", :profile
+        end
+        def post
+            @user.update_attributes(@input.user)
+            @usero = @user
             render :control, "Your Profile", :profile
         end
     end
@@ -147,6 +173,11 @@ module ParkPlace::Controllers
 end
 
 module ParkPlace::Views
+    def control_tab(klass)
+        opts = {:href => R(klass)}
+        opts[:class] = (@env.PATH_INFO =~ /^#{opts[:href]}/ ? "active" : "inactive")
+        opts
+    end
     def control(str, view)
         html do
             head do
@@ -157,13 +188,13 @@ module ParkPlace::Views
             end
             body do
                 div.page! do
-                    if @user
+                    if @user and not @login
                     div.menu do
                         ul do
-                            li { a 'buckets', :href => R(CBuckets) }
-                            li { a 'users',   :href => R(CUsers)   }
-                            li { a 'profile', :href => R(CProfile) }
-                            li { a 'logout',  :href => R(CLogout)  }
+                            li { a 'buckets', control_tab(CBuckets) }
+                            li { a 'users',   control_tab(CUsers)   } if @user.superuser?
+                            li { a 'profile', control_tab(CProfile) }
+                            li { a 'logout',  control_tab(CLogout)  }
                         end
                     end
                     end
@@ -184,7 +215,7 @@ module ParkPlace::Views
     end
 
     def control_loginform
-        form :action => R(CLogin), :method => 'post', :class => 'create' do
+        form :method => 'post', :class => 'create' do
             errors_for @user if @user
             div.required do
                 label 'User', :for => 'login'
@@ -199,26 +230,30 @@ module ParkPlace::Views
     end
 
     def control_buckets
-        table :width => "100%" do
-            thead do
-                th "Name"
-                th "Contains"
-                th "Updated on"
-                th "Permission"
-            end
-            tbody do
-                @buckets.each do |bucket|
-                    tr do
-                        th { a bucket.name, :href => R(CFiles, bucket.name) }
-                        td "#{bucket.children_count rescue 0} files"
-                        td bucket.updated_at
-                        td bucket.access_readable
+        if @buckets.any?
+            table :width => "100%" do
+                thead do
+                    th "Name"
+                    th "Contains"
+                    th "Updated on"
+                    th "Permission"
+                end
+                tbody do
+                    @buckets.each do |bucket|
+                        tr do
+                            th { a bucket.name, :href => R(CFiles, bucket.name) }
+                            td "#{bucket.children_count rescue 0} files"
+                            td bucket.updated_at
+                            td bucket.access_readable
+                        end
                     end
                 end
             end
+        else
+            p "A sad day.  You have no buckets yet."
         end
-        form :action => R(CBuckets), :method => 'post', :class => 'create' do
-            h3 "Create a Bucket"
+        h3 "Create a Bucket"
+        form :method => 'post', :class => 'create' do
             div.required do
                 label 'Bucket Name', :for => 'bname'
                 input :name => 'bname', :type => 'text'
@@ -227,7 +262,9 @@ module ParkPlace::Views
                 label 'Permissions', :for => 'bacl'
                 select :name => 'bacl' do
                     ParkPlace::CANNED_ACLS.sort.each do |acl, perm|
-                        option acl, :value => perm
+                        opts = {:value => perm}
+                        opts[:selected] = true if acl == 'private'
+                        option acl, opts
                     end
                 end
             end
@@ -256,8 +293,8 @@ module ParkPlace::Views
                 end
             end
         end
-        form :action => R(CFiles, @bucket.name), :method => 'post', :enctype => 'multipart/form-data', :class => 'create' do
-            h3 "Upload a File"
+        h3 "Upload a File"
+        form :method => 'post', :enctype => 'multipart/form-data', :class => 'create' do
             div.required do
                 input :name => 'upfile', :type => 'file'
             end
@@ -269,7 +306,9 @@ module ParkPlace::Views
                 label 'Permissions', :for => 'facl'
                 select :name => 'facl' do
                     ParkPlace::CANNED_ACLS.sort.each do |acl, perm|
-                        option acl, :value => perm
+                        opts = {:value => perm}
+                        opts[:selected] = true if acl == 'private'
+                        option acl, opts
                     end
                 end
             end
@@ -277,51 +316,95 @@ module ParkPlace::Views
         end
     end
 
-    def control_users
-        table :width => "100%" do
-            thead do
-                th "Login"
-                th "Created on"
-            end
-            tbody do
-                @users.each do |user|
-                    tr do
-                        th { a user.login, :href => R(CUser, user.login) }
-                        td user.created_at
-                    end
-                end
-            end
-        end
+    def control_user
+        control_userform
+    end
+
+    def control_userform
         form :action => R(CUsers), :method => 'post', :class => 'create' do
-            h3 "Create a User"
+            errors_for @usero
             div.required do
-                label 'Login', :for => 'login'
-                input :name => 'login', :type => 'text'
+                label 'Login', :for => 'user[login]'
+                input.large :name => 'user[login]', :type => 'text', :value => @usero.login
+            end
+            div.required.inline do
+                label 'Is a super-admin? ', :for => 'user[superuser]'
+                checkbox 'user[superuser]', @usero.superuser
+            end
+            div.required do
+                label 'Password', :for => 'user[password]'
+                input.fixed :name => 'user[password]', :type => 'password'
+            end
+            div.required do
+                label 'Password again', :for => 'user[password_confirmation]'
+                input.fixed :name => 'user[password_confirmation]', :type => 'password'
+            end
+            div.required do
+                label 'Email', :for => 'user[email]'
+                input :name => 'user[email]', :type => 'text', :value => @usero.email
+            end
+            div.required do
+                label 'Key (must be unique)', :for => 'user[key]'
+                input.fixed.long :name => 'user[key]', :type => 'text', :value => @usero.key || generate_key
+            end
+            div.required do
+                label 'Secret', :for => 'user[secret]'
+                input.fixed.long :name => 'user[secret]', :type => 'text', :value => @usero.secret || generate_secret
             end
             input.newuser! :type => 'submit', :value => "Create"
         end
     end
 
+    def control_users
+        table :width => "100%" do
+            thead do
+                th "Login"
+                th "Activated on"
+            end
+            tbody do
+                @users.each do |user|
+                    tr do
+                        th { a user.login, :href => R(CUser, user.login) }
+                        td user.activated_at
+                    end
+                end
+            end
+        end
+        h3 "Create a User"
+        control_userform
+    end
+
     def control_profile
-        form :action => R(CProfile), :method => 'post', :class => 'create' do
-            div.required do
-                label 'Login', :for => 'login'
-                h4 @user.login
+        form :method => 'post', :class => 'create' do
+            errors_for @usero
+            if @user.superuser?
+                div.required.inline do
+                    label 'Is a super-admin? ', :for => 'user[superuser]'
+                    checkbox 'user[superuser]', @usero.superuser
+                end
             end
             div.required do
-                label 'Email', :for => 'email'
-                input :name => 'email', :type => 'text', :value => @user.email
+                label 'Password', :for => 'user[password]'
+                input.fixed :name => 'user[password]', :type => 'password'
+            end
+            div.required do
+                label 'Password again', :for => 'user[password_confirmation]'
+                input.fixed :name => 'user[password_confirmation]', :type => 'password'
+            end
+            div.required do
+                label 'Email', :for => 'user[email]'
+                input :name => 'user[email]', :type => 'text', :value => @usero.email
             end
             div.required do
                 label 'Key', :for => 'key'
-                h4 @user.key
+                h4 @usero.key
             end
             div.required do
                 label 'Secret', :for => 'secret'
-                h4 @user.secret
+                h4 @usero.secret
             end
             input.newfile! :type => 'submit', :value => "Save"
-            input.regen! :type => 'submit', :value => "Generate New Keys"
+            # input.regen! :type => 'submit', :value => "Generate New Keys"
         end
     end
 
@@ -335,5 +418,11 @@ module ParkPlace::Views
       end.sub('.0', '')
     rescue
       nil
+    end
+
+    def checkbox(name, value)
+        opts = {:name => name, :type => 'checkbox', :value => 1}
+        opts[:checked] = "true" if value.to_i == 1
+        input opts
     end
 end

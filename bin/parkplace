@@ -14,8 +14,9 @@ ParkPlace.create
 
 if ParkPlace::Models::User.count == 0
     puts "** No users found, creating the `admin' user."
-    ParkPlace::Models::User.create :login => "admin", :password => hmac_sha1( DEFAULT_PASSWORD, DEFAULT_SECRET ),
-        :email => "admin@parkplace.net", :key => "44CF9590006BF252F707", :secret => DEFAULT_SECRET
+    ParkPlace::Models::User.create :login => "admin", :password => DEFAULT_PASSWORD,
+        :email => "admin@parkplace.net", :key => "44CF9590006BF252F707", :secret => DEFAULT_SECRET,
+        :activated_at => Time.now, :superuser => 1
 end
 
 admin = ParkPlace::Models::User.find_by_login "admin"

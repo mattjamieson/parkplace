@@ -7,7 +7,17 @@ module ParkPlace
 
         class User < Base
             has_many :bits, :foreign_key => 'owner_id'
+            validates_length_of :login, :within => 3..40
+            validates_uniqueness_of :login
             validates_uniqueness_of :key
+            validates_confirmation_of :password
+            def before_save
+                @password_clean = self.password
+                self.password = hmac_sha1(self.password, self.secret)
+            end
+            def after_save
+                self.password = @password_clean
+            end
         end
 
         class Bit < Base
@@ -101,6 +111,7 @@ module ParkPlace
                         t.column :secret,         :string,   :limit => 64
                         t.column :created_at,     :datetime
                         t.column :activated_at,   :datetime
+                        t.column :superuser,      :integer, :default => 0
                         t.column :deleted,        :integer, :default => 0
                     end
                     create_table :parkplace_bits_users do |t|
