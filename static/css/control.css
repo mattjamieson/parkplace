@@ -20,7 +20,7 @@ h4 { font-size: 21px; }
     margin: 0 auto;
     padding: 3px 20px;
     border: solid 1px #d5d8c1;
-    background-color: white;
+    background: white url(/control/s/images/monopoly-car.jpg) 340px -60px no-repeat;
 }
 
 #header, #content {
@@ -48,6 +48,7 @@ h4 { font-size: 21px; }
     margin: 0px 2px; padding: 3px 6px;
     font-weight: bold;
     background-color: #f1f4d8;
+    -moz-opacity: 0.92;
 }
 
 .menu ul li a.active {
