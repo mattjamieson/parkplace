@@ -1,9 +1,11 @@
 require 'rubygems'
 require 'camping'
+require 'camping/session'
 require 'digest/sha1'
 require 'base64'
 require 'time'
 require 'md5'
+# INSERT INTO "parkplace_users" VALUES(1, 'why', '44CF9590006BF252F707', 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV');
 
 Camping.goes :ParkPlace
 
@@ -13,6 +15,8 @@ require 'parkplace/controllers'
 require 'parkplace/models'
 
 module ParkPlace
+    BUFSIZE = (4 * 1024)
+    STORAGE_PATH = File.join(Dir.pwd, 'storage')
     RESOURCE_TYPES = %w[acl torrent]
     CANNED_ACLS = {
         'private' => 0600,
@@ -28,6 +32,7 @@ module ParkPlace
 
     class << self
         def create
+            Camping::Models::Session.create_schema
             ParkPlace::Models.create_schema
         end
         def serve
@@ -35,7 +40,7 @@ module ParkPlace
             require 'mongrel/camping'
 
             ParkPlace::Models::Base.establish_connection :adapter => 'sqlite3', :database => 'park.db'
-            ParkPlace::Models::Base.logger = Logger.new('camping.log')
+            ParkPlace::Models::Base.logger = Logger.new('camping.log') if $DEBUG
             ParkPlace::Models::Base.threaded_connections=false
             ParkPlace.create
 

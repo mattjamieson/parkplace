@@ -1,6 +1,10 @@
 module ParkPlace
     module Models
 
+        class FileInfo
+            attr_accessor :path, :mime_type, :disposition, :size, :md5
+        end
+
         class User < Base
             has_many :bits, :foreign_key => 'owner_id'
             validates_uniqueness_of :key
@@ -9,6 +13,7 @@ module ParkPlace
         class Bit < Base
             acts_as_nested_set
             serialize :meta
+            serialize :obj
             belongs_to :owner, :class_name => 'User', :foreign_key => 'owner_id'
             has_and_belongs_to_many :users
             validates_length_of :name, :within => 3..255
@@ -49,7 +54,13 @@ module ParkPlace
         end
 
         class Slot < Bit
-           def etag; %{"#{MD5.md5(self.obj)}"} end
+           def etag
+               if self.obj.respond_to? :md5
+                   self.obj.md5
+               else
+                  %{"#{MD5.md5(self.obj)}"}
+               end
+           end
         end
 
         def self.create_schema
@@ -67,13 +78,18 @@ module ParkPlace
                         t.column :updated_at, :timestamp
                         t.column :access,    :integer
                         t.column :meta,      :text
-                        t.column :obj,       :binary
+                        t.column :obj,       :text
                     end
                     create_table :parkplace_users do |t|
-                        t.column :id,      :integer,  :null => false
-                        t.column :login,   :string,   :limit => 40
-                        t.column :key,     :string,   :limit => 64
-                        t.column :secret,  :string,   :limit => 64
+                        t.column :id,             :integer,  :null => false
+                        t.column :login,          :string,   :limit => 40
+                        t.column :password,       :string,   :limit => 40
+                        t.column :email,          :string,   :limit => 64
+                        t.column :key,            :string,   :limit => 64
+                        t.column :secret,         :string,   :limit => 64
+                        t.column :created_at,     :datetime
+                        t.column :activated_at,   :datetime
+                        t.column :deleted,        :integer, :default => 0
                     end
                     create_table :parkplace_bits_users do |t|
                         t.column :bit_id,  :integer

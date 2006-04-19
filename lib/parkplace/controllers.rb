@@ -1,3 +1,5 @@
+require 'fileutils'
+
 module ParkPlace
     module Controllers
         class RService < R '/'
@@ -15,7 +17,7 @@ module ParkPlace
                             buckets.each do |b|
                                 x.Bucket do
                                     x.Name b.name
-                                    x.CreationDate b.created_at.iso8601
+                                    x.CreationDate b.created_at.getgm.iso8601
                                 end
                             end
                         end
@@ -72,7 +74,7 @@ module ParkPlace
                         contents.each do |c|
                             x.Contents do
                                 x.Key c.name
-                                x.LastModified c.updated_at.iso8601
+                                x.LastModified c.updated_at.getgm.iso8601
                                 x.ETag c.etag
                                 x.Size c.obj.size
                                 x.StorageClass "STANDARD"
@@ -92,19 +94,43 @@ module ParkPlace
                 bucket = Bucket.find_root bucket_name
                 only_can_write bucket
                 raise MissingContentLength unless @env.HTTP_CONTENT_LENGTH
-                raise IncompleteBody if @env.HTTP_CONTENT_LENGTH.to_i > @in.size
+
+                temp_path, readlen = nil, 0
+                md5 = MD5.new
+                Tempfile.open(oid) do |tmpf|
+                    temp_path = tmpf.path
+                    tmpf.binmode
+                    while part = @in.read(BUFSIZE)
+                        readlen += part.size
+                        md5 << part
+                        tmpf << part unless @in.respond_to? :path
+                    end
+                end
+
+                fileinfo = FileInfo.new
+                fileinfo.mime_type = @env.HTTP_CONTENT_TYPE || "binary/octet-stream"
+                fileinfo.disposition = @env.HTTP_CONTENT_DISPOSITION
+                fileinfo.size = readlen 
+                fileinfo.md5 = md5.hexdigest
+
+                raise IncompleteBody if @env.HTTP_CONTENT_LENGTH.to_i != readlen
                 if @env.HTTP_CONTENT_MD5
                     raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ /^[0-9a-fA-F]{32}$/
-                    raise BadDigest unless MD5.md5(@in) == @env.HTTP_CONTENT_MD5
+                    raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
                 end
+
+                bucket_dir = File.join(STORAGE_PATH, bucket_name)
+                fileinfo.path = File.join(bucket_dir, File.basename(@in.respond_to?(:path) ? @in.path : tmpf.path))
+                FileUtils.mkdir_p(bucket_dir)
+                FileUtils.mv(temp_path, fileinfo.path)
 
                 slot = nil
                 meta = @meta.empty? ? nil : {}.merge(@meta)
                 begin
                     slot = bucket.find_slot(oid)
-                    slot.update_attributes(:owner_id => @user.id, :meta => meta, :obj => @in)
+                    slot.update_attributes(:owner_id => @user.id, :meta => meta, :obj => fileinfo)
                 rescue NoSuchKey
-                    slot = Slot.create(:name => oid, :owner_id => @user.id, :meta => meta, :obj => @in)
+                    slot = Slot.create(:name => oid, :owner_id => @user.id, :meta => meta, :obj => fileinfo)
                     bucket.add_child(slot)
                 end
                 slot.grant(requested_acl)
@@ -124,17 +150,26 @@ module ParkPlace
 
                 headers = {}
                 if @slot.meta
-                    headers = @slot.meta.inject({}) { |hsh, (k, v)| hsh["x-amz-meta-#{k}"] = v; hsh }
+                    @slot.meta.each { |k, v| headers["x-amz-meta-#{k}"] = v }
                 end
-                r(200, '', headers.merge('ETag' => etag, 'Content-Type' => 'text/plain',
-                       'Last-Modified' => @slot.updated_at.httpdate, 'Content-Length' => (@slot.obj || '').size))
+                if @slot.obj.is_a? FileInfo
+                    headers['Content-Type'] = @slot.obj.mime_type
+                    headers['Content-Disposition'] = @slot.obj.disposition
+                end
+                headers['Content-Type'] ||= 'binary/octet-stream'
+                r(200, '', headers.merge('ETag' => etag, 'Last-Modified' => @slot.updated_at.httpdate, 'Content-Length' => @slot.obj.size))
             end
             def get(bucket_name, oid)
                 head(bucket_name, oid)
                 if @env.HTTP_RANGE  # ugh, parse ranges
                     raise NotImplemented
                 else
-                    @slot.obj
+                    case @slot.obj
+                    when FileInfo
+                        headers['X-Sendfile'] = @slot.obj.path
+                    else
+                        @slot.obj
+                    end
                 end
             end
             def delete(bucket_name, oid)
