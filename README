@@ -1,0 +1,35 @@
+
+
+  Park Place                                               an Amazon-S3 clone
+  ---------------------------------------------------------------------------
+
+  Okay, so, you've checked out from Subversion and you want to get this suckr
+  up and everything.
+
+  First, a checklist:
+
+    1. Do you have Camping and Mongrel installed?
+
+         gem install camping mongrel --include-dependencies
+
+    2. I would also recommend the `sendfile' gem if you're on non-Windows.
+
+         gem install sendfile
+
+    3. Do you have SQLite3 installed?  (If you don't want to mess with the
+       database driver.)
+
+         Follow these instructions EXACTLY AS WRITTEN:
+         http://code.whytheluckystiff.net/camping/wiki/BeAlertWhenOnSqlite3
+
+  Okay, time to turn it on:
+
+    bin/parkplace
+
+  Once you're sold, you can go ahead and install it for reals:
+
+    sudo ruby setup.rb
+    parkplace
+
+  ---------------------------------------------------------------------------
+         for more, visit: http://code.whytheluckystiff.net/parkplace
