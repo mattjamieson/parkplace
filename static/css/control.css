@@ -1,0 +1,146 @@
+body {
+    font-family: arial, helvetica, sans-serif;
+    font-size: 16px;
+    margin: 20px;
+    background-color: #f5f8e1;
+}
+
+h1, h2, h3, h4, h5 {
+    font-weight: normal;
+    margin: 0; padding: 0; 
+}
+    
+h1 { font-size: 15px; color: #797; }
+h2 { font-size: 34px; }
+h3 { font-size: 26px; }
+h4 { font-size: 21px; }
+
+#page {
+    width: 640px;
+    margin: 0 auto;
+    padding: 3px 20px;
+    border: solid 1px #d5d8c1;
+    background-color: white;
+}
+
+#header, #content {
+    margin: 12px 0px;
+}
+
+.menu {
+    float: right;
+    font-size: 11px;
+}
+
+.menu ul {
+    list-style: none;
+    margin: 0; padding: 0;
+}
+
+.menu ul li {
+    display: inline;
+    margin: 0; padding: 0;
+}
+
+.menu ul li a {
+    color: black;
+    text-decoration: none;
+    margin: 0px 2px; padding: 3px 6px;
+    background-color: #d1d4d8;
+}
+
+.menu ul li a:hover {
+    color: white;
+    background-color: #C13438;
+}
+
+table {
+    border-collapse: collapse;
+    border: 2px solid #3f7c5f;
+    color: #000;
+    background: #fff;
+}
+
+form.create {
+    padding: 0px 0 10px 0;
+}
+
+form.create h3 {
+    margin: 12px 0 0 0;
+}
+form.create .required,
+form.create .optional {
+    padding: 5px 0;
+}
+
+form.create label {
+    display: block;
+    color: #575;
+    font-size: 10px;
+}
+
+form.create input,
+form.create select {
+    font-size: 14px;
+}
+
+caption {
+    padding: 0 0.6em 0.8em;
+    font-size: 1.3em;
+    font-weight: bold;
+    text-align: left;
+    color: #000;
+    background: transparent;
+}
+td, th {
+    border: 1px solid #396;
+    padding: 0.3em;
+}
+thead th {
+    border: 1px solid #396;
+    text-align: left;
+    font-weight: bold;
+    background: #c6f7af;
+    color: #333;
+}
+tfoot th, tfoot td {
+    border: 1px solid #396;
+    text-align: left;
+    background: #e8e8cf;
+}
+tfoot th {
+    font-weight: bold;
+}
+tbody td a {
+    background: transparent;
+    color: #00c;
+    text-decoration: underline;
+}
+tbody td a:hover {
+    background: transparent;
+    color: #00c;
+    text-decoration: underline;
+}
+tbody tr:hover th {
+    background-color: #c66;
+}
+tbody tr:hover th a {
+    color: white;
+}
+tbody th a {
+    background: transparent;
+    color: #3f7c5f;
+    text-decoration: underline;
+    font-weight: normal;
+}
+tbody th, tbody td {
+    vertical-align: top;
+    text-align: left;
+    font-size: 15px;
+}
+tfoot td {
+    border: 1px solid #996;
+}
+tbody tr:hover {
+    background: #efffd9;
+}

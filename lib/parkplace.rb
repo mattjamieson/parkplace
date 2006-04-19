@@ -5,7 +5,6 @@ require 'digest/sha1'
 require 'base64'
 require 'time'
 require 'md5'
-# INSERT INTO "parkplace_users" VALUES(1, 'why', '44CF9590006BF252F707', 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV');
 
 Camping.goes :ParkPlace
 
@@ -17,6 +16,7 @@ require 'parkplace/models'
 module ParkPlace
     BUFSIZE = (4 * 1024)
     STORAGE_PATH = File.join(Dir.pwd, 'storage')
+    STATIC_PATH = File.expand_path('../static', File.dirname(__FILE__))
     RESOURCE_TYPES = %w[acl torrent]
     CANNED_ACLS = {
         'private' => 0600,
@@ -61,5 +61,6 @@ module ParkPlace
 end
 
 if __FILE__ == $0
+    require 'parkplace/control'
     ParkPlace.serve
 end

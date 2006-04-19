@@ -30,6 +30,17 @@ module ParkPlace
         return Base64::encode64(Digest::SHA1.digest(outer)).chomp
     end
 
+    # Kick out anonymous users.
+    def only_authorized; raise ParkPlace::AccessDenied unless @user end
+    # Kick out any users which do not have read access to a certain resource.
+    def only_can_read bit; raise ParkPlace::AccessDenied unless bit.readable_by? @user end
+    # Kick out any users which do not have write access to a certain resource.
+    def only_can_write bit; raise ParkPlace::AccessDenied unless bit.writable_by? @user end
+    # Kick out any users which do not own a certain resource.
+    def only_owner_of bit; raise ParkPlace::AccessDenied unless bit.owned_by? @user end
+end
+
+module ParkPlace::S3
     # This method overrides Camping's own <tt>service</tt> method.  The idea here is
     # to set up some common instance vars and check authentication.  Here's the rundown:
     #
@@ -40,10 +51,10 @@ module ParkPlace
     # # If authorization is successful, the <tt>@user</tt> variable contains a valid User
     #   object.  If not, <tt>@user</tt> is nil.
     #
-    # If a ParkPlace exception is thrown (anything derived from ServiceError),
+    # If a ParkPlace exception is thrown (anything derived from ParkPlace::ServiceError),
     # the exception is displayed as XML.
     def service(*a)
-        @meta, @amz = H[], H[]
+        @meta, @amz = ParkPlace::H[], ParkPlace::H[]
         @env.each do |k, v|
             k = k.downcase.gsub('_', '-')
             @amz[$1] = v.strip if k =~ /^http-x-amz-([-\w]+)$/
@@ -56,13 +67,13 @@ module ParkPlace
             key_s, secret_s, date_s = @input.AWSAccessKeyId, @input.Signature, @input.Expires
         end
         uri = @env.PATH_INFO
-        uri += "?" + @env.QUERY_STRING if RESOURCE_TYPES.include?(@env.QUERY_STRING)
+        uri += "?" + @env.QUERY_STRING if ParkPlace::RESOURCE_TYPES.include?(@env.QUERY_STRING)
         canonical = [@env.REQUEST_METHOD, @env.HTTP_CONTENT_MD5, @env.HTTP_CONTENT_TYPE, 
             date_s, uri]
         @amz.sort.each do |k, v|
             canonical[-1,0] = "x-amz-#{k}:#{v}"
         end
-        @user = Models::User.find_by_key key_s
+        @user = ParkPlace::Models::User.find_by_key key_s
         if @user and secret_s != hmac_sha1(@user.secret, canonical * "\n")
             raise BadAuthentication
         end
@@ -70,7 +81,7 @@ module ParkPlace
         s = super(*a)
         s.headers['Server'] = 'ParkPlace'
         s
-    rescue ServiceError => e
+    rescue ParkPlace::ServiceError => e
         xml e.status do |x|
             x.Error do
                 x.Code e.code
@@ -82,19 +93,10 @@ module ParkPlace
         self
     end
 
-    # Kick out anonymous users.
-    def only_authorized; raise AccessDenied unless @user end
-    # Kick out any users which do not have read access to a certain resource.
-    def only_can_read bit; raise AccessDenied unless bit.readable_by? @user end
-    # Kick out any users which do not have write access to a certain resource.
-    def only_can_write bit; raise AccessDenied unless bit.writable_by? @user end
-    # Kick out any users which do not own a certain resource.
-    def only_owner_of bit; raise AccessDenied unless bit.owned_by? @user end
-
     # Parse any ACL requests which have come in.
     def requested_acl
         # FIX: parse XML
         raise NotImplemented if @input.has_key? 'acl'
-        {:access => CANNED_ACLS[@amz['acl']] || CANNED_ACLS['private']}
+        {:access => ParkPlace::CANNED_ACLS[@amz['acl']] || ParkPlace::CANNED_ACLS['private']}
     end
 end

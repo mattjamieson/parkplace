@@ -24,6 +24,18 @@ module ParkPlace
                     self.save
                 end
             end
+            def access_readable
+                name, _ = CANNED_ACLS.find { |k, v| v == self.access }
+                if name
+                    name
+                else
+                    [0100, 0010, 0001].map do |i|
+                        [[4, 'r'], [2, 'w'], [1, 'x']].map do |k, v|
+                            (self.access & (i * k) == 0 ? '-' : v )
+                        end
+                    end.join
+                end
+            end
             def check_access user, group_perm, user_perm
                 !!( if owned_by?(user) or (user and access & group_perm > 0) or (access & user_perm > 0)
                         true

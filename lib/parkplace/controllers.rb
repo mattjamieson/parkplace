@@ -1,8 +1,51 @@
 require 'fileutils'
 
 module ParkPlace
+    module SlotGet
+        def head(bucket_name, oid)
+            @slot = ParkPlace::Models::Bucket.find_root(bucket_name).find_slot(oid)
+            only_can_read @slot
+
+            etag = @slot.etag
+            since = Time.httpdate(@env.HTTP_IF_MODIFIED_SINCE) rescue nil
+            raise NotModified if since and @slot.updated_at <= since
+            since = Time.httpdate(@env.HTTP_IF_UNMODIFIED_SINCE) rescue nil
+            raise PreconditionFailed if since and @slot.updated_at > since
+            raise PreconditionFailed if @env.HTTP_IF_MATCH and etag != @env.HTTP_IF_MATCH
+            raise NotModified if @env.HTTP_IF_NONE_MATCH and etag == @env.HTTP_IF_NONE_MATCH
+
+            headers = {}
+            if @slot.meta
+                @slot.meta.each { |k, v| headers["x-amz-meta-#{k}"] = v }
+            end
+            if @slot.obj.is_a? ParkPlace::Models::FileInfo
+                headers['Content-Type'] = @slot.obj.mime_type
+                headers['Content-Disposition'] = @slot.obj.disposition
+            end
+            headers['Content-Type'] ||= 'binary/octet-stream'
+            r(200, '', headers.merge('ETag' => etag, 'Last-Modified' => @slot.updated_at.httpdate, 'Content-Length' => @slot.obj.size))
+        end
+        def get(bucket_name, oid)
+            head(bucket_name, oid)
+            if @env.HTTP_RANGE  # ugh, parse ranges
+                raise NotImplemented
+            else
+                case @slot.obj
+                when ParkPlace::Models::FileInfo
+                    headers['X-Sendfile'] = @slot.obj.path
+                else
+                    @slot.obj
+                end
+            end
+        end
+    end
+
     module Controllers
+        def self.constants
+            super().sort
+        end
         class RService < R '/'
+            include ParkPlace::S3
             def get
                 only_authorized
                 buckets = Bucket.find :all, :conditions => ['parent_id IS NULL AND owner_id = ?', @user.id], :order => "name"
@@ -27,9 +70,12 @@ module ParkPlace
         end
 
         class RBucket < R '/([^\/]+)/?'
+            include ParkPlace::S3
             def put(bucket_name)
                 only_authorized
-                Bucket.find_root(bucket_name).grant(requested_acl)
+                bucket = Bucket.find_root(bucket_name)
+                only_owner_of bucket
+                bucket.grant(requested_acl)
                 raise BucketAlreadyExists
             rescue NoSuchBucket
                 Bucket.create(:name => bucket_name, :owner_id => @user.id).grant(requested_acl)
@@ -90,20 +136,22 @@ module ParkPlace
         end
 
         class RSlot < R '/(.+?)/(.+)'
+            include ParkPlace::S3, ParkPlace::SlotGet
             def put(bucket_name, oid)
                 bucket = Bucket.find_root bucket_name
                 only_can_write bucket
                 raise MissingContentLength unless @env.HTTP_CONTENT_LENGTH
 
-                temp_path, readlen = nil, 0
+                temp_path = @in.path rescue nil
+                readlen = 0
                 md5 = MD5.new
                 Tempfile.open(oid) do |tmpf|
-                    temp_path = tmpf.path
+                    temp_path ||= tmpf.path
                     tmpf.binmode
                     while part = @in.read(BUFSIZE)
                         readlen += part.size
                         md5 << part
-                        tmpf << part unless @in.respond_to? :path
+                        tmpf << part unless @in.is_a?(Tempfile)
                     end
                 end
 
@@ -120,7 +168,7 @@ module ParkPlace
                 end
 
                 bucket_dir = File.join(STORAGE_PATH, bucket_name)
-                fileinfo.path = File.join(bucket_dir, File.basename(@in.respond_to?(:path) ? @in.path : tmpf.path))
+                fileinfo.path = File.join(bucket_dir, File.basename(temp_path))
                 FileUtils.mkdir_p(bucket_dir)
                 FileUtils.mv(temp_path, fileinfo.path)
 
@@ -135,42 +183,6 @@ module ParkPlace
                 end
                 slot.grant(requested_acl)
                 r(200, '', 'ETag' => slot.etag, 'Content-Length' => 0)
-            end
-            def head(bucket_name, oid)
-                @slot = Bucket.find_root(bucket_name).find_slot(oid)
-                only_can_read @slot
-
-                etag = @slot.etag
-                since = Time.httpdate(@env.HTTP_IF_MODIFIED_SINCE) rescue nil
-                raise NotModified if since and @slot.updated_at <= since
-                since = Time.httpdate(@env.HTTP_IF_UNMODIFIED_SINCE) rescue nil
-                raise PreconditionFailed if since and @slot.updated_at > since
-                raise PreconditionFailed if @env.HTTP_IF_MATCH and etag != @env.HTTP_IF_MATCH
-                raise NotModified if @env.HTTP_IF_NONE_MATCH and etag == @env.HTTP_IF_NONE_MATCH
-
-                headers = {}
-                if @slot.meta
-                    @slot.meta.each { |k, v| headers["x-amz-meta-#{k}"] = v }
-                end
-                if @slot.obj.is_a? FileInfo
-                    headers['Content-Type'] = @slot.obj.mime_type
-                    headers['Content-Disposition'] = @slot.obj.disposition
-                end
-                headers['Content-Type'] ||= 'binary/octet-stream'
-                r(200, '', headers.merge('ETag' => etag, 'Last-Modified' => @slot.updated_at.httpdate, 'Content-Length' => @slot.obj.size))
-            end
-            def get(bucket_name, oid)
-                head(bucket_name, oid)
-                if @env.HTTP_RANGE  # ugh, parse ranges
-                    raise NotImplemented
-                else
-                    case @slot.obj
-                    when FileInfo
-                        headers['X-Sendfile'] = @slot.obj.path
-                    else
-                        @slot.obj
-                    end
-                end
             end
             def delete(bucket_name, oid)
                 bucket = Bucket.find_root bucket_name
