@@ -39,11 +39,6 @@ module ParkPlace
             require 'mongrel'
             require 'mongrel/camping'
 
-            ParkPlace::Models::Base.establish_connection :adapter => 'sqlite3', :database => 'park.db'
-            ParkPlace::Models::Base.logger = Logger.new('camping.log') if $DEBUG
-            ParkPlace::Models::Base.threaded_connections=false
-            ParkPlace.create
-
             # Use the Configurator as an example rather than Mongrel::Camping.start
             config = Mongrel::Configurator.new :host => "0.0.0.0" do
                 listener :port => 3002 do
@@ -58,9 +53,4 @@ module ParkPlace
             config.join
         end
     end
-end
-
-if __FILE__ == $0
-    require 'parkplace/control'
-    ParkPlace.serve
 end

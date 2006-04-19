@@ -11,8 +11,12 @@ module ParkPlace::UserSession
         if @state.user_id
             @user = ParkPlace::Models::User.find :first, @state.user_id
         end
-        @user ||= ParkPlace::Models::User.new
-        super(*a)
+        if @user
+            super(*a)
+        else
+            redirect Controllers::CLogin
+        end
+        self
     end
 end
 
@@ -20,16 +24,15 @@ module ParkPlace::Controllers
     class CHome < R '/control'
         login_required
         def get
-            if @user.login
-                redirect CBuckets
-            else
-                render :control, "Login", :login
-            end
+            redirect CBuckets
         end
     end
 
     class CLogin < R '/control/login'
-        login_required
+        include Camping::Session
+        def get
+            render :control, "Login", :login
+        end
         def post
             user = User.find_by_login @input.login
             if user
@@ -154,7 +157,7 @@ module ParkPlace::Views
             end
             body do
                 div.page! do
-                    if @user.login
+                    if @user
                     div.menu do
                         ul do
                             li { a 'buckets', :href => R(CBuckets) }
@@ -182,7 +185,7 @@ module ParkPlace::Views
 
     def control_loginform
         form :action => R(CLogin), :method => 'post', :class => 'create' do
-            errors_for @user
+            errors_for @user if @user
             div.required do
                 label 'User', :for => 'login'
                 input.login! :type => 'text'

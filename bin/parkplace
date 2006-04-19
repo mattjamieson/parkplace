@@ -1,3 +1,27 @@
 #!/usr/bin/env ruby
+$: << "./lib"
 require 'parkplace'
+require 'parkplace/control'
+include ParkPlace
+
+DEFAULT_PASSWORD = 'pass@word1'
+DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
+
+ParkPlace::Models::Base.establish_connection :adapter => 'sqlite3', :database => 'park.db'
+ParkPlace::Models::Base.logger = Logger.new('camping.log') if $DEBUG
+ParkPlace::Models::Base.threaded_connections=false
+ParkPlace.create
+
+if ParkPlace::Models::User.count == 0
+    puts "** No users found, creating the `admin' user."
+    ParkPlace::Models::User.create :login => "admin", :password => hmac_sha1( DEFAULT_PASSWORD, DEFAULT_SECRET ),
+        :email => "admin@parkplace.net", :key => "44CF9590006BF252F707", :secret => DEFAULT_SECRET
+end
+
+admin = ParkPlace::Models::User.find_by_login "admin"
+if admin.password == hmac_sha1( DEFAULT_PASSWORD, admin.secret )
+    puts "** Please login in with `admin' and password `#{DEFAULT_PASSWORD}'"
+    puts "** You should change the default password or delete the admin at soonest chance!"
+end
+
 ParkPlace.serve
