@@ -1,3 +1,9 @@
+class Time
+    def to_s
+        strftime("%B %d, %Y at %H:%M")
+    end
+end
+
 module ParkPlace
     # For controllers which pass back XML directly, this method allows quick assignment
     # of the status code and takes care of generating the XML headers.  Takes a block
@@ -39,6 +45,8 @@ module ParkPlace
         abc = %{ABCDEF0123456789} 
         (1..20).map { abc[rand(abc.size),1] }.join
     end
+
+    POST = %{if(!this.title||confirm(this.title+'?')){var f = document.createElement('form'); this.parentNode.appendChild(f); f.method = 'POST'; f.action = this.href; f.submit();}return false;}
 
     # Kick out anonymous users.
     def only_authorized; raise ParkPlace::AccessDenied unless @user end

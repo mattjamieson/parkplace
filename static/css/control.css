@@ -3,6 +3,7 @@ body {
     font-size: 16px;
     margin: 20px;
     background-color: #f5f8e1;
+    text-align: center;
 }
 
 h1, h2, h3, h4, h5 {
@@ -21,6 +22,7 @@ h4 { font-size: 21px; }
     padding: 3px 20px;
     border: solid 1px #d5d8c1;
     background: white url(/control/s/images/monopoly-car.jpg) 340px -60px no-repeat;
+    text-align: left;
 }
 
 #header, #content {

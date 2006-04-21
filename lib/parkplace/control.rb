@@ -62,7 +62,12 @@ module ParkPlace::Controllers
     class CBuckets < R '/control/buckets'
         login_required
         def get
-            @buckets = Bucket.find :all, :conditions => ['parent_id IS NULL AND owner_id = ?', @user.id], :order => "name"
+            @buckets = Bucket.find_by_sql [%{
+               SELECT b.*, COUNT(c.id) AS total_children
+               FROM parkplace_bits b LEFT JOIN parkplace_bits c 
+                        ON b.rgt > c.rgt AND c.lft > b.lft
+               WHERE b.parent_id IS NULL AND b.owner_id = ?
+               GROUP BY b.id ORDER BY b.name}, @user.id]
             render :control, 'Your Buckets', :buckets
         end
         def post
@@ -114,6 +119,31 @@ module ParkPlace::Controllers
     class CFile < R '/control/buckets/(.+)/(.+)'
         login_required
         include ParkPlace::SlotGet
+    end
+
+    class CDeleteBucket < R '/control/delete/([^\/]+)'
+        login_required
+        def post(bucket_name, oid)
+            bucket = Bucket.find_root(bucket_name)
+            only_owner_of bucket
+
+            if Slot.count(:conditions => ['parent_id = ?', bucket.id]) > 0
+                raise BucketNotEmpty
+            end
+            bucket.destroy
+            redirect CBuckets
+        end
+    end
+
+    class CDeleteFile < R '/control/delete/(.+?)/(.+)'
+        login_required
+        def post(bucket_name, oid)
+            bucket = Bucket.find_root bucket_name
+            only_can_write bucket
+            slot = bucket.find_slot(oid)
+            slot.destroy
+            redirect CFiles, bucket_name
+        end
     end
 
     class CUsers < R '/control/users'
@@ -242,7 +272,7 @@ module ParkPlace::Views
                     @buckets.each do |bucket|
                         tr do
                             th { a bucket.name, :href => R(CFiles, bucket.name) }
-                            td "#{bucket.children_count rescue 0} files"
+                            td "#{bucket.total_children rescue 0} files"
                             td bucket.updated_at
                             td bucket.access_readable
                         end
@@ -288,7 +318,7 @@ module ParkPlace::Views
                         td number_to_human_size(file.obj.size)
                         td file.updated_at
                         td bucket.access_readable
-                        td { a "Delete", :href => R(CFile, @bucket.name, file.name) }
+                        td { a "Delete", :href => R(CDeleteFile, @bucket.name, file.name), :onClick => POST, :title => "Delete file #{file.name}" }
                     end
                 end
             end
