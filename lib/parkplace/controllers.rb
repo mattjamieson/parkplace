@@ -27,12 +27,14 @@ module ParkPlace
         end
         def get(bucket_name, oid)
             head(bucket_name, oid)
-            if @env.HTTP_RANGE  # ugh, parse ranges
+            if @input.has_key? 'torrent'
+                torrent @slot
+            elsif @env.HTTP_RANGE  # ugh, parse ranges
                 raise NotImplemented
             else
                 case @slot.obj
                 when ParkPlace::Models::FileInfo
-                    file_path = File.join(STORAGE_PATH, bucket_name, @slot.obj.path)
+                    file_path = File.join(STORAGE_PATH, @slot.obj.path)
                     headers['X-Sendfile'] = file_path
                 else
                     @slot.obj
@@ -96,6 +98,9 @@ module ParkPlace
                 bucket = Bucket.find_root(bucket_name)
                 only_can_read bucket
 
+                if @input.has_key? 'torrent'
+                    return torrent(bucket)
+                end
                 opts = {:conditions => ['parent_id = ?', bucket.id], :order => "name"}
                 limit = nil
                 if @input.prefix
@@ -168,10 +173,9 @@ module ParkPlace
                     raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
                 end
 
-                bucket_dir = File.join(STORAGE_PATH, bucket_name)
-                fileinfo.path = File.basename(temp_path)
-                file_path = File.join(bucket_dir, fileinfo.path)
-                FileUtils.mkdir_p(bucket_dir)
+                fileinfo.path = File.join(bucket_name, File.basename(temp_path))
+                file_path = File.join(STORAGE_PATH, fileinfo.path)
+                FileUtils.mkdir_p(File.dirname(file_path))
                 FileUtils.mv(temp_path, file_path)
 
                 slot = nil

@@ -109,10 +109,9 @@ module ParkPlace::Controllers
             fileinfo.size = readlen
             fileinfo.md5 = md5.hexdigest
 
-            bucket_dir = File.join(STORAGE_PATH, bucket_name)
-            fileinfo.path = File.basename(tmpf.path)
-            file_path = File.join(bucket_dir, fileinfo.path)
-            FileUtils.mkdir_p(bucket_dir)
+            fileinfo.path = File.join(bucket_name, File.basename(tmpf.path))
+            file_path = File.join(STORAGE_PATH, fileinfo.path)
+            FileUtils.mkdir_p(File.dirname(file_path))
             FileUtils.mv(tmpf.path, file_path)
 
             @input.fname = @input.upfile.filename if @input.fname.blank?

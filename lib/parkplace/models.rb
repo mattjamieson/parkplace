@@ -26,8 +26,10 @@ module ParkPlace
             serialize :obj
             belongs_to :owner, :class_name => 'User', :foreign_key => 'owner_id'
             has_and_belongs_to_many :users
+            has_one :torrent
             validates_length_of :name, :within => 3..255
 
+            def fullpath; File.join(STORAGE_PATH, name) end
             def grant hsh
                 if hsh[:access]
                     self.access = hsh[:access]
@@ -76,16 +78,56 @@ module ParkPlace
         end
 
         class Slot < Bit
-           def etag
-               if self.obj.respond_to? :md5
-                   self.obj.md5
-               else
-                  %{"#{MD5.md5(self.obj)}"}
-               end
-           end
+            def fullpath; File.join(STORAGE_PATH, obj.path) end
+            def etag
+                if self.obj.respond_to? :md5
+                    self.obj.md5
+                else
+                   %{"#{MD5.md5(self.obj)}"}
+                end
+            end
+        end
+
+        class Torrent < Base
+            belongs_to :bit
+            has_many :torrent_peers
+        end
+
+        class TorrentPeer < Base
+            belongs_to :torrent
         end
 
         def self.create_schema
+            unless Torrent.table_exists?
+                ActiveRecord::Schema.define do
+                    create_table :parkplace_torrents do |t|
+                        t.column :id,        :integer,  :null => false
+                        t.column :bit_id,    :integer
+                        t.column :info_hash, :string,   :limit => 40
+                        t.column :metainfo,  :binary
+                        t.column :seeders,   :integer,  :null => false, :default => 0
+                        t.column :leechers,  :integer,  :null => false, :default => 0
+                        t.column :hits,      :integer,  :null => false, :default => 0
+                        t.column :total,     :integer,  :null => false, :default => 0
+                        t.column :updated_at, :timestamp
+                    end
+                    create_table :parkplace_torrent_peers do |t|
+                        t.column :id,         :integer,  :null => false
+                        t.column :torrent_id, :integer
+                        t.column :guid,       :string,   :limit => 40
+                        t.column :ipaddr,     :string
+                        t.column :port,       :integer
+                        t.column :uploaded,   :integer,  :null => false, :default => 0
+                        t.column :downloaded, :integer,  :null => false, :default => 0
+                        t.column :remaining,  :integer,  :null => false, :default => 0
+                        t.column :compact,    :integer,  :null => false, :default => 0
+                        t.column :event,      :integer,  :null => false, :default => 0
+                        t.column :key,        :string,   :limit => 55
+                        t.column :created_at, :timestamp
+                        t.column :updated_at, :timestamp
+                    end
+                end
+            end
             unless Bucket.table_exists?
                 ActiveRecord::Schema.define do
                     create_table :parkplace_bits do |t|

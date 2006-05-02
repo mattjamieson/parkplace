@@ -12,6 +12,13 @@ require 'parkplace/errors'
 require 'parkplace/helpers'
 require 'parkplace/controllers'
 require 'parkplace/models'
+begin
+    require 'parkplace/torrent'
+    puts "-- RubyTorrent found, torrent support is turned on."
+    puts "-- TORRENT SUPPORT IS EXTREMELY EXPERIMENTAL -- WHAT I MEAN IS: IT PROBABLY DOESN'T WORK."
+rescue LoadError
+    puts "-- No RubyTorrent found, torrent support disbled."
+end
 
 module ParkPlace
     VERSION = "1.0"
