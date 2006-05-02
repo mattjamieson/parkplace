@@ -11,6 +11,7 @@ module ParkPlace::UserSession
         if @state.user_id
             @user = ParkPlace::Models::User.find @state.user_id
         end
+        @state.errors, @state.next_errors = @state.next_errors || [], nil
         if @user
             super(*a)
         else
@@ -61,21 +62,26 @@ module ParkPlace::Controllers
 
     class CBuckets < R '/control/buckets'
         login_required
-        def get
+        def load_buckets
             @buckets = Bucket.find_by_sql [%{
                SELECT b.*, COUNT(c.id) AS total_children
                FROM parkplace_bits b LEFT JOIN parkplace_bits c 
-                        ON b.rgt > c.rgt AND c.lft > b.lft
+                        ON c.parent_id = b.id
                WHERE b.parent_id IS NULL AND b.owner_id = ?
                GROUP BY b.id ORDER BY b.name}, @user.id]
+            @bucket = Bucket.new(:owner_id => @user.id, :access => CANNED_ACLS['private'])
+        end
+        def get
+            load_buckets
             render :control, 'Your Buckets', :buckets
         end
         def post
-            Bucket.find_root(@input.bname)
-            redirect CBuckets
+            Bucket.find_root(@input.bucket.name)
+            load_buckets
+            @bucket.errors.add_to_base("A bucket named `#{@input.bucket.name}' already exists.")
+            render :control, 'Your Buckets', :buckets
         rescue NoSuchBucket
-            bucket = Bucket.create(:name => @input.bname, :owner_id => @user.id)
-            bucket.grant(:access => @input.bacl.to_i)
+            bucket = Bucket.create(@input.bucket)
             redirect CBuckets
         end
     end
@@ -104,14 +110,15 @@ module ParkPlace::Controllers
             fileinfo.md5 = md5.hexdigest
 
             bucket_dir = File.join(STORAGE_PATH, bucket_name)
-            fileinfo.path = File.join(bucket_dir, File.basename(tmpf.path))
+            fileinfo.path = File.basename(tmpf.path)
+            file_path = File.join(bucket_dir, fileinfo.path)
             FileUtils.mkdir_p(bucket_dir)
-            FileUtils.mv(tmpf.path, fileinfo.path)
+            FileUtils.mv(tmpf.path, file_path)
 
             @input.fname = @input.upfile.filename if @input.fname.blank?
             slot = Slot.create(:name => @input.fname, :owner_id => @user.id, :meta => nil, :obj => fileinfo)
+            slot.grant(:access => @input.facl.to_i)
             bucket.add_child(slot)
-            slot.grant(:access => @input.bacl.to_i)
             redirect CFiles, bucket_name
         end
     end
@@ -123,14 +130,15 @@ module ParkPlace::Controllers
 
     class CDeleteBucket < R '/control/delete/([^\/]+)'
         login_required
-        def post(bucket_name, oid)
+        def post(bucket_name)
             bucket = Bucket.find_root(bucket_name)
             only_owner_of bucket
 
             if Slot.count(:conditions => ['parent_id = ?', bucket.id]) > 0
-                raise BucketNotEmpty
+                error "Bucket #{bucket.name} cannot be deleted, since it is not empty."
+            else
+                bucket.destroy
             end
-            bucket.destroy
             redirect CBuckets
         end
     end
@@ -166,7 +174,21 @@ module ParkPlace::Controllers
         end
     end
 
-    class CUser < R '/control/users/(.+)'
+    class CDeleteUser < R '/control/users/delete/(.+)'
+        login_required
+        def post(login)
+            only_superusers
+            @usero = User.find_by_login login
+            if @usero.id == @user.id
+                error "Suicide is not an option."
+            else
+                @usero.destroy
+            end
+            redirect CUsers
+        end
+    end
+
+    class CUser < R '/control/users/([^\/]+)'
         login_required
         def get(login)
             only_superusers
@@ -260,6 +282,7 @@ module ParkPlace::Views
     end
 
     def control_buckets
+        errors_for @state
         if @buckets.any?
             table :width => "100%" do
                 thead do
@@ -267,6 +290,7 @@ module ParkPlace::Views
                     th "Contains"
                     th "Updated on"
                     th "Permission"
+                    th "Actions"
                 end
                 tbody do
                     @buckets.each do |bucket|
@@ -275,6 +299,7 @@ module ParkPlace::Views
                             td "#{bucket.total_children rescue 0} files"
                             td bucket.updated_at
                             td bucket.access_readable
+                            td { a "Delete", :href => R(CDeleteBucket, bucket.name), :onClick => POST, :title => "Delete bucket #{bucket.name}" }
                         end
                     end
                 end
@@ -284,16 +309,18 @@ module ParkPlace::Views
         end
         h3 "Create a Bucket"
         form :method => 'post', :class => 'create' do
+            errors_for @bucket
+            input :name => 'bucket[owner_id]', :type => 'hidden', :value => @bucket.owner_id
             div.required do
-                label 'Bucket Name', :for => 'bname'
-                input :name => 'bname', :type => 'text'
+                label 'Bucket Name', :for => 'bucket[name]'
+                input :name => 'bucket[name]', :type => 'text', :value => @bucket.name
             end
             div.required do
-                label 'Permissions', :for => 'bacl'
-                select :name => 'bacl' do
+                label 'Permissions', :for => 'bucket[access]'
+                select :name => 'bucket[access]' do
                     ParkPlace::CANNED_ACLS.sort.each do |acl, perm|
                         opts = {:value => perm}
-                        opts[:selected] = true if acl == 'private'
+                        opts[:selected] = true if perm == @bucket.access
                         option acl, opts
                     end
                 end
@@ -304,6 +331,7 @@ module ParkPlace::Views
 
     def control_files
         table :width => "100%" do
+            caption { a(:href => R(CBuckets)) { self << "&larr; Buckets" } }
             thead do
                 th "File"
                 th "Size"
@@ -317,7 +345,7 @@ module ParkPlace::Views
                         th { a file.name, :href => R(CFile, @bucket.name, file.name) }
                         td number_to_human_size(file.obj.size)
                         td file.updated_at
-                        td bucket.access_readable
+                        td file.access_readable
                         td { a "Delete", :href => R(CDeleteFile, @bucket.name, file.name), :onClick => POST, :title => "Delete file #{file.name}" }
                     end
                 end
@@ -337,7 +365,7 @@ module ParkPlace::Views
                 select :name => 'facl' do
                     ParkPlace::CANNED_ACLS.sort.each do |acl, perm|
                         opts = {:value => perm}
-                        opts[:selected] = true if acl == 'private'
+                        opts[:selected] = true if perm == @bucket.access
                         option acl, opts
                     end
                 end
@@ -386,16 +414,19 @@ module ParkPlace::Views
     end
 
     def control_users
+        errors_for @state
         table :width => "100%" do
             thead do
                 th "Login"
                 th "Activated on"
+                th "Actions"
             end
             tbody do
                 @users.each do |user|
                     tr do
                         th { a user.login, :href => R(CUser, user.login) }
                         td user.activated_at
+                        td { a "Delete", :href => R(CDeleteUser, user.login), :onClick => POST, :title => "Delete user #{user.login}" }
                     end
                 end
             end

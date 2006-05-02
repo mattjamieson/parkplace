@@ -1,15 +1,76 @@
 #!/usr/bin/env ruby
 $: << "./lib"
+require 'ftools'
+require 'optparse'
+require 'ostruct'
+DEFAULT_PASSWORD = 'pass@word1'
+DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
+
+options = OpenStruct.new
+opts = OptionParser.new do |opts|
+    opts.banner = "Usage: parkplace [options] [directory]"
+
+    opts.separator ""
+    opts.separator "Specific options:"
+
+    opts.on("-D", "--[no-]daemon",  "Daemon mode") do |d|
+        options.daemon = d
+    end
+
+    opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+        options.verbose = v
+    end
+
+    opts.separator ""
+    opts.separator "Common options:"
+  
+    opts.on_tail("-h", "--help", "Show this message") do
+      puts opts
+      exit
+    end
+  
+    # Another typical switch to print the version.
+    opts.on_tail("--version", "Show version") do
+      puts ParkPlace::VERSION
+      exit
+    end
+end
+
+opts.parse! ARGV
+options.parkplace_dir = ARGV[0]
+
+# locate ~/.parkplace
+if options.parkplace_dir.nil?
+    homes = []
+    homes << [ENV['HOME'], File.join( ENV['HOME'], '.parkplace' )] if ENV['HOME']
+    homes << [ENV['APPDATA'], File.join( ENV['APPDATA'], 'ParkPlace' )] if ENV['APPDATA']
+    homes.each do |home_top, home_dir|
+        next unless home_top
+        if File.exists? home_top
+            options.parkplace_dir = home_dir
+            break
+        end
+    end
+end
+
+abort "** No home directory found, please say the directory when you run #$O." unless options.parkplace_dir
+File.makedirs( options.parkplace_dir )
+conf = File.join( options.parkplace_dir, 'config.yaml' )
+if File.exists? conf
+    YAML.load_file( conf ).each { |k,v| options.method("#{k}=").call(v) if options.method(k).nil? }
+end
+options.storage_dir ||= File.join(options.parkplace_dir, 'storage')
+options.database ||= {:adapter => 'sqlite3', :database => File.join(options.parkplace_dir, 'park.db')}
+
+module ParkPlace; end
+ParkPlace::STORAGE_PATH = options.storage_dir
+
 require 'parkplace'
 require 'parkplace/control'
 include ParkPlace
 
-DEFAULT_PASSWORD = 'pass@word1'
-DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
-
-ParkPlace::Models::Base.establish_connection :adapter => 'sqlite3', :database => 'park.db'
+ParkPlace::Models::Base.establish_connection(options.database)
 ParkPlace::Models::Base.logger = Logger.new('camping.log') if $DEBUG
-ParkPlace::Models::Base.threaded_connections=false
 ParkPlace.create
 
 if ParkPlace::Models::User.count == 0

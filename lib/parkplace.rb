@@ -14,8 +14,9 @@ require 'parkplace/controllers'
 require 'parkplace/models'
 
 module ParkPlace
+    VERSION = "1.0"
     BUFSIZE = (4 * 1024)
-    STORAGE_PATH = File.join(Dir.pwd, 'storage')
+    STORAGE_PATH ||= File.join(Dir.pwd, 'storage')
     STATIC_PATH = File.expand_path('../static', File.dirname(__FILE__))
     RESOURCE_TYPES = %w[acl torrent]
     CANNED_ACLS = {

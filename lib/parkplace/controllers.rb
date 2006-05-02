@@ -32,7 +32,8 @@ module ParkPlace
             else
                 case @slot.obj
                 when ParkPlace::Models::FileInfo
-                    headers['X-Sendfile'] = @slot.obj.path
+                    file_path = File.join(STORAGE_PATH, bucket_name, @slot.obj.path)
+                    headers['X-Sendfile'] = file_path
                 else
                     @slot.obj
                 end
@@ -168,9 +169,10 @@ module ParkPlace
                 end
 
                 bucket_dir = File.join(STORAGE_PATH, bucket_name)
-                fileinfo.path = File.join(bucket_dir, File.basename(temp_path))
+                fileinfo.path = File.basename(temp_path)
+                file_path = File.join(bucket_dir, fileinfo.path)
                 FileUtils.mkdir_p(bucket_dir)
-                FileUtils.mv(temp_path, fileinfo.path)
+                FileUtils.mv(temp_path, file_path)
 
                 slot = nil
                 meta = @meta.empty? ? nil : {}.merge(@meta)

@@ -66,7 +66,7 @@ ul.errors {
     color: black;
     background-color: #f1e428;
     padding: 4px;
-    margin: 0;
+    margin: 0 0 10px 0;
     -moz-opacity: 0.80;
     width: 250px;
     list-style: none;
@@ -122,9 +122,9 @@ table {
     background: #fff;
 }
 caption {
-    padding: 0 0.6em 0.8em;
-    font-size: 1.3em;
-    font-weight: bold;
+    margin: 0.3em 0;
+    font-size: .7em;
+    font-weight: normal;
     text-align: left;
     color: #000;
     background: transparent;

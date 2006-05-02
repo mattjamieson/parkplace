@@ -58,6 +58,14 @@ module ParkPlace
     def only_owner_of bit; raise ParkPlace::AccessDenied unless bit.owned_by? @user end
     # Kick out any non-superusers
     def only_superusers; raise ParkPlace::AccessDenied unless @user.superuser? end
+
+    # Build an ActiveRecord Errors set.
+    def error(msg)
+        @state.next_errors = ActiveRecord::Errors.new(@state).instance_eval do
+            add_to_base msg
+            self
+        end
+    end
 end
 
 module ParkPlace::S3
