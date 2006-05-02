@@ -39,6 +39,14 @@ module ParkPlace
             'Content-Type' => 'application/x-bittorrent')
     end
 
+    def torrent_list(info_hash)
+        params = {:order => 'seeders DESC, leechers DESC', :include => :bit}
+        if info_hash
+            params[:conditions] = ['info_hash = ?', info_hash]
+        end
+        Models::Torrent.find :all, params
+    end
+
     def tracker_reply(params)
         r(200, params.merge('interval' => TRACKER_INTERVAL).to_bencoding, 'Content-Type' => 'text/plain')
     end
@@ -118,7 +126,7 @@ module ParkPlace::Models
 end
 
 module ParkPlace::Controllers
-    class CTracker < R '/.tracker/announce'
+    class CTracker < R '/tracker/announce'
         EVENT_CODES = {
             'started' => 200, 
             'completed' => 201, 
@@ -143,7 +151,6 @@ module ParkPlace::Controllers
                 trnt.hits += 1
             end
 
-            @input.event.downcase!
             if @input.event == 'completed'
                 trnt.total += 1
             end
@@ -153,19 +160,16 @@ module ParkPlace::Controllers
                                    :ipaddr => @env.REMOTE_ADDR, :guid => guid)
             complete, incomplete = 0, 0
             peers = trnt.torrent_peers.map do |peer|
+                if peer.updated_at < Time.now - (TRACKER_INTERVAL * 2) or (@input.event == 'stopped' and peer.guid == guid)
+                    peer.destroy
+                    next
+                end
                 if peer.event == EVENT_CODES['completed']
                     complete += 1
                 else
                     incomplete += 1
                 end
-                if peer.guid == guid
-                    peer.destroy if @input.event == 'stopped'
-                    next
-                end
-                if peer.updated_at < Time.now - (TRACKER_INTERVAL * 2)
-                    peer.destroy
-                    next
-                end
+                next if peer.guid == guid
                 {'peer id' => peer.guid.from_hex_s, 'ip' => peer.ipaddr, 'port' => peer.port}
             end.compact
             trnt.seeders = complete
@@ -175,6 +179,53 @@ module ParkPlace::Controllers
         rescue Exception => e
             puts "#{e.class}: #{e.message}"
             tracker_error "#{e.class}: #{e.message}"
+        end
+    end
+
+    class CTrackerScrape < R '/tracker/scrape'
+        def get
+            torrents = torrent_list @input.info_hash
+            tracker_reply('files' => torrents.map { |t| 
+                {'complete' => t.seeders, 'downloaded' => t.total, 'incomplete' => t.leechers, 'name' => t.bit.name} })
+        end
+    end
+
+    class CTrackerIndex < R '/tracker'
+        def get
+            @torrents = torrent_list @input.info_hash
+            render :torrent_index
+        end
+    end
+end
+
+module ParkPlace::Views
+    def torrent_index
+        html do
+            head do
+                title "Park Place Torrents"
+            end
+            body do
+                table do
+                    thead do
+                        tr do
+                        th "Name"
+                        th "Seeders"
+                        th "Leechers"
+                        th "Downloads"
+                        end
+                    end
+                    tbody do
+                    torrents.each do |t|
+                        tr do  
+                            td t.bit.name
+                            td t.seeders
+                            td t.leechers
+                            td t.total
+                        end
+                    end
+                    end
+                end
+            end
         end
     end
 end
