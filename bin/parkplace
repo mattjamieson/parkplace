@@ -3,6 +3,8 @@ $: << "./lib"
 require 'ftools'
 require 'optparse'
 require 'ostruct'
+require 'yaml'
+
 DEFAULT_PASSWORD = 'pass@word1'
 DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
 
@@ -57,9 +59,9 @@ abort "** No home directory found, please say the directory when you run #$O." u
 File.makedirs( options.parkplace_dir )
 conf = File.join( options.parkplace_dir, 'config.yaml' )
 if File.exists? conf
-    YAML.load_file( conf ).each { |k,v| options.method("#{k}=").call(v) if options.method(k).nil? }
+    YAML.load_file( conf ).each { |k,v| options.__send__("#{k}=", v) if options.__send__(k).nil? }
 end
-options.storage_dir ||= File.join(options.parkplace_dir, 'storage')
+options.storage_dir = File.expand_path(options.storage_dir || 'storage', options.parkplace_dir)
 options.database ||= {:adapter => 'sqlite3', :database => File.join(options.parkplace_dir, 'park.db')}
 
 module ParkPlace; end
