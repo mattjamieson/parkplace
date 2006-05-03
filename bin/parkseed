@@ -2,17 +2,15 @@
 $:.unshift "./lib"
 require 'optparse'
 require 'parkplace'
-
-DEFAULT_PASSWORD = 'pass@word1'
-DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
+require 'stringio'
 
 options = ParkPlace.options
-options.host = "127.0.0.1"
-options.port = 3002
+options.seed_host = "127.0.0.1"
+options.seed_port = 3003
 
 opts = OptionParser.new do |opts|
-    opts.banner = "Usage: parkplace [options] [host] [port]"
-    opts.separator "Default host is #{options.host}, default port is #{options.port}."
+    opts.banner = "Usage: parkseed [options] [host] [port]"
+    opts.separator "Default host is #{options.seed_host}, default port is #{options.seed_port}."
 
     opts.separator ""
     opts.separator "Specific options:"
@@ -46,28 +44,27 @@ opts = OptionParser.new do |opts|
 end
 
 opts.parse! ARGV
-options.host = ARGV[0] if ARGV[0]
-options.port = ARGV[1].to_i if ARGV[1]
+options.seed_host = ARGV[0] if ARGV[0]
+options.seed_port = ARGV[1].to_i if ARGV[1]
 ParkPlace.config(options)
-
-require 'parkplace/control'
-include ParkPlace
 
 ParkPlace::Models::Base.establish_connection(options.database)
 ParkPlace::Models::Base.logger = Logger.new('camping.log') if $DEBUG
 ParkPlace.create
 
-if ParkPlace::Models::User.count == 0
-    puts "** No users found, creating the `admin' user."
-    ParkPlace::Models::User.create :login => "admin", :password => DEFAULT_PASSWORD,
-        :email => "admin@parkplace.net", :key => "44CF9590006BF252F707", :secret => DEFAULT_SECRET,
-        :activated_at => Time.now, :superuser => 1
+server = RubyTorrent::Server.new(options.seed_host, options.seed_port).start
+loop do
+    ParkPlace::Models::Torrent.find(:all, :include => :bit).each do |trnt|
+        mi = RubyTorrent::MetaInfo.from_stream(StringIO.new(trnt.metainfo))
+        bit = trnt.bit
+        unless server.instance_variable_get("@controllers").has_key? mi.info.sha1
+            begin
+                puts "SEEDING #{bit.name}"
+                server.add_torrent(mi, RubyTorrent::Package.new(mi, bit.fullpath))
+            rescue Exception => e
+                puts "#{e.class}: #{e.message}"
+            end
+        end
+    end
+    sleep 2.minutes
 end
-
-admin = ParkPlace::Models::User.find_by_login "admin"
-if admin.password == hmac_sha1( DEFAULT_PASSWORD, admin.secret )
-    puts "** Please login in with `admin' and password `#{DEFAULT_PASSWORD}'"
-    puts "** You should change the default password or delete the admin at soonest chance!"
-end
-
-ParkPlace.serve(options.host, options.port)

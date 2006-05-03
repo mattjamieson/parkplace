@@ -23,7 +23,7 @@ end
 module ParkPlace
     VERSION = "1.0"
     BUFSIZE = (4 * 1024)
-    STORAGE_PATH ||= File.join(Dir.pwd, 'storage')
+    STORAGE_PATH = File.join(Dir.pwd, 'storage')
     STATIC_PATH = File.expand_path('../static', File.dirname(__FILE__))
     RESOURCE_TYPES = %w[acl torrent]
     CANNED_ACLS = {
@@ -43,13 +43,43 @@ module ParkPlace
             Camping::Models::Session.create_schema
             ParkPlace::Models.create_schema
         end
-        def serve
+        def options
+            require 'ostruct'
+            options = OpenStruct.new
+            if options.parkplace_dir.nil?
+                homes = []
+                homes << [ENV['HOME'], File.join( ENV['HOME'], '.parkplace' )] if ENV['HOME']
+                homes << [ENV['APPDATA'], File.join( ENV['APPDATA'], 'ParkPlace' )] if ENV['APPDATA']
+                homes.each do |home_top, home_dir|
+                    next unless home_top
+                    if File.exists? home_top
+                        options.parkplace_dir = home_dir
+                        break
+                    end
+                end
+            end
+            options
+        end
+        def config(options)
+            require 'ftools'
+            require 'yaml'
+            abort "** No home directory found, please say the directory when you run #$O." unless options.parkplace_dir
+            File.makedirs( options.parkplace_dir )
+            conf = File.join( options.parkplace_dir, 'config.yaml' )
+            if File.exists? conf
+                YAML.load_file( conf ).each { |k,v| options.__send__("#{k}=", v) if options.__send__(k).nil? }
+            end
+            options.storage_dir = File.expand_path(options.storage_dir || 'storage', options.parkplace_dir)
+            options.database ||= {:adapter => 'sqlite3', :database => File.join(options.parkplace_dir, 'park.db')}
+            ParkPlace::STORAGE_PATH.replace options.storage_dir
+        end
+        def serve(host, port)
             require 'mongrel'
             require 'mongrel/camping'
 
             # Use the Configurator as an example rather than Mongrel::Camping.start
-            config = Mongrel::Configurator.new :host => "0.0.0.0" do
-                listener :port => 3002 do
+            config = Mongrel::Configurator.new :host => host do
+                listener :port => port do
                     uri "/", :handler => Mongrel::Camping::CampingHandler.new(ParkPlace)
                     uri "/favicon", :handler => Mongrel::Error404Handler.new("")
                     trap("INT") { stop }
@@ -57,7 +87,7 @@ module ParkPlace
                 end
             end
 
-            puts "** ParkPlace example is running at http://localhost:3002/"
+            puts "** ParkPlace example is running at http://#{host}:#{port}/"
             config.join
         end
     end

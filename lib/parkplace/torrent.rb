@@ -10,7 +10,6 @@ class String
 end
 
 module ParkPlace
-    # TORRENT_SERVER = RubyTorrent::Server.new("192.168.0.4", 3003).start
     TRACKER_INTERVAL = 10.minutes
 
     # All tracker errors are thrown as this class.
@@ -25,16 +24,8 @@ module ParkPlace
         info_hash = Digest::SHA1.digest(mi.info.to_bencoding).to_hex_s
         unless t and t.info_hash == info_hash
             t ||= Models::Torrent.new
-            t.update_attributes(:info_hash => info_hash, :bit_id => bit.id, :metainfo => "X!X NOT CACHED X!X")
+            t.update_attributes(:info_hash => info_hash, :bit_id => bit.id, :metainfo => mi.to_bencoding)
         end
-        # unless TORRENT_SERVER.instance_variable_get("@controllers").has_key? mi.info.sha1
-        #     begin
-        #         puts "SEEDING..."
-        #         p TORRENT_SERVER.add_torrent(mi, RubyTorrent::Package.new(mi, bit.fullpath))
-        #     rescue Exception => e
-        #         puts "#{e.class}: #{e.message}"
-        #     end
-        # end
         r(200, mi.to_bencoding, 'Content-Disposition' => "attachment; filename=#{bit.name}.torrent;",
             'Content-Type' => 'application/x-bittorrent')
     end

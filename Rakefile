@@ -29,10 +29,11 @@ spec =
         s.summary = "a web file storage service, lovely with BitTorrent support."
         s.description = s.summary
         s.author = "why the lucky stiff"
-        s.executables = ['parkplace']
+        s.executables = ['parkplace', 'parkseed']
 
         s.add_dependency('mongrel', '>= 0.3.12.5')
         s.add_dependency('camping', '>= 1.4.1')
+        s.add_dependency('sqlite3-ruby', '>=1.1.0')
         s.add_dependency('rubytorrent', '>= 0.3')
         s.required_ruby_version = '>= 1.8.4'
 
