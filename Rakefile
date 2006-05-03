@@ -6,7 +6,7 @@ require 'fileutils'
 include FileUtils
 
 NAME = "parkplace"
-VERSION = "1.0"
+VERSION = "0.7.21"
 CLEAN.include ['**/.*.sw?', '*.gem', '.config']
 
 Rake::RDocTask.new do |rdoc|

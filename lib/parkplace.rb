@@ -21,7 +21,7 @@ rescue LoadError
 end
 
 module ParkPlace
-    VERSION = "1.0"
+    VERSION = "0.7"
     BUFSIZE = (4 * 1024)
     STORAGE_PATH = File.join(Dir.pwd, 'storage')
     STATIC_PATH = File.expand_path('../static', File.dirname(__FILE__))
