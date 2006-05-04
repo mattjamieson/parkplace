@@ -57,7 +57,8 @@ ParkPlace::Models::Base.establish_connection(options.database)
 ParkPlace::Models::Base.logger = Logger.new('camping.log') if $DEBUG
 ParkPlace.create
 
-if ParkPlace::Models::User.count == 0
+num_users = ParkPlace::Models::User.count
+if num_users == 0
     puts "** No users found, creating the `admin' user."
     ParkPlace::Models::User.create :login => "admin", :password => DEFAULT_PASSWORD,
         :email => "admin@parkplace.net", :key => "44CF9590006BF252F707", :secret => DEFAULT_SECRET,
@@ -65,7 +66,7 @@ if ParkPlace::Models::User.count == 0
 end
 
 admin = ParkPlace::Models::User.find_by_login "admin"
-if admin.password == hmac_sha1( DEFAULT_PASSWORD, admin.secret )
+if num_users == 1 and admin and not admin.password == hmac_sha1( DEFAULT_PASSWORD, admin.secret )
     puts "** Please login in with `admin' and password `#{DEFAULT_PASSWORD}'"
     puts "** You should change the default password or delete the admin at soonest chance!"
 end

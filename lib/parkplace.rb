@@ -71,6 +71,14 @@ module ParkPlace
             end
             options.storage_dir = File.expand_path(options.storage_dir || 'storage', options.parkplace_dir)
             options.database ||= {:adapter => 'sqlite3', :database => File.join(options.parkplace_dir, 'park.db')}
+            if options.database[:adapter] == 'sqlite3'
+                begin
+                    require 'sqlite3_api'
+                rescue LoadError
+                    puts "!! Your SQLite3 adapter isn't a compiled extension."
+                    abort "!! Please check out http://code.whytheluckystiff.net/camping/wiki/BeAlertWhenOnSqlite3 for tips."
+                end
+            end
             ParkPlace::STORAGE_PATH.replace options.storage_dir
         end
         def serve(host, port)
