@@ -6,7 +6,7 @@ require 'fileutils'
 include FileUtils
 
 NAME = "parkplace"
-VERSION = "0.7.21"
+VERSION = "0.7.22"
 CLEAN.include ['**/.*.sw?', '*.gem', '.config']
 
 Rake::RDocTask.new do |rdoc|
@@ -38,7 +38,7 @@ spec =
         s.required_ruby_version = '>= 1.8.4'
 
         s.files = %w(COPYING README Rakefile) +
-          Dir.glob("{bin,doc/rdoc,test,lib}/**/*") + 
+          Dir.glob("{bin,doc,static,test,lib}/**/*") + 
           Dir.glob("ext/**/*.{h,c,rb}") +
           Dir.glob("examples/**/*.rb") +
           Dir.glob("tools/*.rb")
