@@ -151,7 +151,7 @@ module ParkPlace
                 temp_path = @in.path rescue nil
                 readlen = 0
                 md5 = MD5.new
-                Tempfile.open(oid) do |tmpf|
+                Tempfile.open(File.basename(oid)) do |tmpf|
                     temp_path ||= tmpf.path
                     tmpf.binmode
                     while part = @in.read(BUFSIZE)
@@ -174,17 +174,19 @@ module ParkPlace
                 end
 
                 fileinfo.path = File.join(bucket_name, File.basename(temp_path))
+                fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
                 file_path = File.join(STORAGE_PATH, fileinfo.path)
                 FileUtils.mkdir_p(File.dirname(file_path))
                 FileUtils.mv(temp_path, file_path)
 
                 slot = nil
                 meta = @meta.empty? ? nil : {}.merge(@meta)
+                owner_id = @user ? @user.id : bucket.owner_id
                 begin
                     slot = bucket.find_slot(oid)
-                    slot.update_attributes(:owner_id => @user.id, :meta => meta, :obj => fileinfo)
+                    slot.update_attributes(:owner_id => owner_id, :meta => meta, :obj => fileinfo)
                 rescue NoSuchKey
-                    slot = Slot.create(:name => oid, :owner_id => @user.id, :meta => meta, :obj => fileinfo)
+                    slot = Slot.create(:name => oid, :owner_id => owner_id, :meta => meta, :obj => fileinfo)
                     bucket.add_child(slot)
                 end
                 slot.grant(requested_acl)

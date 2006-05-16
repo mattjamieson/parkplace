@@ -110,6 +110,7 @@ module ParkPlace::Controllers
             fileinfo.md5 = md5.hexdigest
 
             fileinfo.path = File.join(bucket_name, File.basename(tmpf.path))
+            fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
             file_path = File.join(STORAGE_PATH, fileinfo.path)
             FileUtils.mkdir_p(File.dirname(file_path))
             FileUtils.mv(tmpf.path, file_path)
@@ -122,7 +123,7 @@ module ParkPlace::Controllers
         end
     end
 
-    class CFile < R '/control/buckets/(.+)/(.+)'
+    class CFile < R '/control/buckets/(.+?)/(.+)'
         login_required
         include ParkPlace::SlotGet
     end
