@@ -10,6 +10,7 @@ module ParkPlace
             validates_length_of :login, :within => 3..40
             validates_uniqueness_of :login
             validates_uniqueness_of :key
+            validates_presence_of :password
             validates_confirmation_of :password
             def before_save
                 @password_clean = self.password
