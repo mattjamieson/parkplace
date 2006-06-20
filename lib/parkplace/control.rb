@@ -284,7 +284,7 @@ module ParkPlace::Views
     def control_buckets
         errors_for @state
         if @buckets.any?
-            table :width => "100%" do
+            table do
                 thead do
                     th "Name"
                     th "Contains"
@@ -330,7 +330,7 @@ module ParkPlace::Views
     end
 
     def control_files
-        table :width => "100%" do
+        table do
             caption { a(:href => R(CBuckets)) { self << "&larr; Buckets" } }
             thead do
                 th "File"
@@ -415,7 +415,7 @@ module ParkPlace::Views
 
     def control_users
         errors_for @state
-        table :width => "100%" do
+        table do
             thead do
                 th "Login"
                 th "Activated on"

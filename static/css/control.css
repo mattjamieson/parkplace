@@ -120,6 +120,7 @@ table {
     border: 2px solid #3f3c5f;
     color: #000;
     background: #fff;
+    width: 100%;
 }
 caption {
     margin: 0.3em 0;
