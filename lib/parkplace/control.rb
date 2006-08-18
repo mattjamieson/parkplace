@@ -2,7 +2,7 @@ require 'parkplace/mimetypes_hash'
 
 class Class
     def login_required
-        include Camping::Session, ParkPlace::UserSession
+        include Camping::Session, ParkPlace::UserSession, ParkPlace::Base
     end
 end
 
@@ -22,6 +22,7 @@ module ParkPlace::UserSession
 end
 
 module ParkPlace::Controllers
+
     class CHome < R '/control'
         login_required
         def get
@@ -30,7 +31,7 @@ module ParkPlace::Controllers
     end
 
     class CLogin < R '/control/login'
-        include Camping::Session
+        include Camping::Session, ParkPlace::Base
         def get
             render :control, "Login", :login
         end
@@ -86,7 +87,7 @@ module ParkPlace::Controllers
         end
     end
 
-    class CFiles < R '/control/buckets/(.+)'
+    class CFiles < R '/control/buckets/([^\/]+)'
         login_required
         def get(bucket_name)
             @bucket = Bucket.find_root(bucket_name)
@@ -123,7 +124,7 @@ module ParkPlace::Controllers
         end
     end
 
-    class CFile < R '/control/buckets/(.+?)/(.+)'
+    class CFile < R '/control/buckets/([^\/]+?)/(.+)'
         login_required
         include ParkPlace::SlotGet
     end
@@ -200,6 +201,18 @@ module ParkPlace::Controllers
             @usero = User.find_by_login login
             @usero.update_attributes(@input.user)
             render :control, "#{@usero.login}", :profile
+        end
+    end
+
+    class CProgressIndex < R '/control/progress'
+        def get
+            Mongrel::Uploads.instance.instance_variable_get("@counters").inspect
+        end
+    end
+
+    class CProgress < R '/control/progress/(.+)'
+        def get(upid)
+            Mongrel::Uploads.instance.check(upid).inspect
         end
     end
 
@@ -282,7 +295,6 @@ module ParkPlace::Views
     end
 
     def control_buckets
-        errors_for @state
         if @buckets.any?
             table do
                 thead do
@@ -352,7 +364,7 @@ module ParkPlace::Views
             end
         end
         h3 "Upload a File"
-        form :method => 'post', :enctype => 'multipart/form-data', :class => 'create' do
+        form :action => "?upload_id=#{Time.now.to_f}", :method => 'post', :enctype => 'multipart/form-data', :class => 'create' do
             div.required do
                 input :name => 'upfile', :type => 'file'
             end
@@ -486,4 +498,5 @@ module ParkPlace::Views
         opts[:checked] = "true" if value.to_i == 1
         input opts
     end
+
 end

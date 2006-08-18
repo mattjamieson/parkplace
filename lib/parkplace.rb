@@ -10,8 +10,12 @@ Camping.goes :ParkPlace
 
 require 'parkplace/errors'
 require 'parkplace/helpers'
-require 'parkplace/controllers'
 require 'parkplace/models'
+require 'parkplace/controllers'
+if $PARKPLACE_ACCESSORIES
+  require 'parkplace/control'
+end
+require 'parkplace/s3'
 begin
     require 'parkplace/torrent'
     puts "-- RubyTorrent found, torrent support is turned on."
@@ -84,11 +88,17 @@ module ParkPlace
         def serve(host, port)
             require 'mongrel'
             require 'mongrel/camping'
+            if $PARKPLACE_PROGRESS
+              require_gem 'mongrel_upload_progress'
+              GemPlugin::Manager.instance.load "mongrel" => GemPlugin::INCLUDE
+            end
 
-            # Use the Configurator as an example rather than Mongrel::Camping.start
             config = Mongrel::Configurator.new :host => host do
                 listener :port => port do
                     uri "/", :handler => Mongrel::Camping::CampingHandler.new(ParkPlace)
+                    if $PARKPLACE_PROGRESS
+                      uri "/control/buckets", :handler => plugin('/handlers/upload')
+                    end
                     uri "/favicon", :handler => Mongrel::Error404Handler.new("")
                     trap("INT") { stop }
                     run

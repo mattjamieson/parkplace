@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 $:.unshift "./lib"
 require 'optparse'
+$PARKPLACE_ACCESSORIES = true
 require 'parkplace'
 
 DEFAULT_PASSWORD = 'pass@word1'
@@ -50,7 +51,6 @@ options.host = ARGV[0] if ARGV[0]
 options.port = ARGV[1].to_i if ARGV[1]
 ParkPlace.config(options)
 
-require 'parkplace/control'
 include ParkPlace
 
 ParkPlace::Models::Base.establish_connection(options.database)
