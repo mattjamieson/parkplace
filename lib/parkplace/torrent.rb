@@ -17,7 +17,7 @@ module ParkPlace
 
     def torrent bit
         mi = bit.metainfo
-        mi.announce = URL(Controllers::CTracker)
+        mi.announce = URI("http:#{URL(Controllers::CTracker)}")
         mi.created_by = "Served by ParkPlace/#{ParkPlace::VERSION}"
         mi.creation_date = Time.now
         t = Models::Torrent.find_by_bit_id bit.id
@@ -146,9 +146,11 @@ module ParkPlace::Controllers
                 trnt.total += 1
             end
             @input.event = 'completed' if @input.left == "0"
-            peer.update_attributes(:port => @input.port, :uploaded => @input.uploaded, :downloaded => @input.downloaded,
-                                   :remaining => @input.left, :event => EVENT_CODES[@input.event], :key => @input.key,
-                                   :ipaddr => @env.REMOTE_ADDR, :guid => guid)
+            if @input.event
+                peer.update_attributes(:uploaded => @input.uploaded, :downloaded => @input.downloaded,
+                    :remaining => @input.left, :event => EVENT_CODES[@input.event], :key => @input.key,
+                    :port => @input.port, :ipaddr => @env.REMOTE_ADDR, :guid => guid)
+            end
             complete, incomplete = 0, 0
             peers = trnt.torrent_peers.map do |peer|
                 if peer.updated_at < Time.now - (TRACKER_INTERVAL * 2) or (@input.event == 'stopped' and peer.guid == guid)

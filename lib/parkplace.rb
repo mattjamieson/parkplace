@@ -15,7 +15,6 @@ require 'parkplace/controllers'
 if $PARKPLACE_ACCESSORIES
   require 'parkplace/control'
 end
-require 'parkplace/s3'
 begin
     require 'parkplace/torrent'
     puts "-- RubyTorrent found, torrent support is turned on."
@@ -23,6 +22,7 @@ begin
 rescue LoadError
     puts "-- No RubyTorrent found, torrent support disbled."
 end
+require 'parkplace/s3'
 
 module ParkPlace
     VERSION = "0.7"
