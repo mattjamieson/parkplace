@@ -182,3 +182,14 @@ tfoot td {
 tbody tr:hover {
     background: #efffd9;
 }
+tbody th:hover p {
+    color: #fec;
+}
+tbody th p {
+    font-size: 12px;
+    font-weight: normal;
+    margin: 4px 0;
+}
+.details {
+    display: none;
+}

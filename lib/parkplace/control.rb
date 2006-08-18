@@ -92,7 +92,8 @@ module ParkPlace::Controllers
         def get(bucket_name)
             @bucket = Bucket.find_root(bucket_name)
             only_can_read @bucket
-            @files = Slot.find :all, :conditions => ['parent_id = ?', @bucket.id], :order => 'name'
+            @files = Slot.find :all, :include => :torrent, 
+              :conditions => ['parent_id = ?', @bucket.id], :order => 'name'
             render :control, "/#{@bucket.name}", :files
         end
         def post(bucket_name)
@@ -247,7 +248,7 @@ module ParkPlace::Views
         html do
             head do
                 title { "Park Place Control Center &raquo; " + str }
-                script :language => 'javascript', :src => R(CStatic, 'js/prototype.js')
+                script :language => 'javascript', :src => R(CStatic, 'js/jquery.js')
                 # script :language => 'javascript', :src => R(CStatic, 'js/support.js')
                 style "@import '#{self / R(CStatic, 'css/control.css')}';", :type => 'text/css'
             end
@@ -347,18 +348,30 @@ module ParkPlace::Views
             thead do
                 th "File"
                 th "Size"
-                th "Updated on"
                 th "Permission"
-                th "Actions"
             end
             tbody do
                 @files.each do |file|
                     tr do
-                        th { a file.name, :href => R(CFile, @bucket.name, file.name) }
+                        th do
+                            a file.name, :href => "javascript://", :onclick => "$('#details-#{file.id}').toggle()"
+                            div.details :id => "details-#{file.id}" do
+                                p "Last modified on #{file.updated_at}"
+                                p do
+                                    info = [a("Torrent", :href => R(RSlot, @bucket.name, file.name) + "?torrent")]
+                                    if file.torrent
+                                        info += ["#{file.torrent.seeders} seeders", 
+                                            "#{file.torrent.leechers} leechers",
+                                            "#{file.torrent.total} downloads"]
+                                    end
+                                    info += [a("Delete", :href => R(CDeleteFile, @bucket.name, file.name), 
+                                               :onClick => POST, :title => "Delete file #{file.name}")]
+                                    info.join " &bull; "
+                                end
+                            end
+                        end
                         td number_to_human_size(file.obj.size)
-                        td file.updated_at
                         td file.access_readable
-                        td { a "Delete", :href => R(CDeleteFile, @bucket.name, file.name), :onClick => POST, :title => "Delete file #{file.name}" }
                     end
                 end
             end
