@@ -44,8 +44,10 @@ module ParkPlace
 
     class << self
         def create
+            v = 0.0
+            v = 1.0 if Models::Bucket.table_exists?
             Camping::Models::Session.create_schema
-            ParkPlace::Models.create_schema
+            Models.create_schema :assume => v
         end
         def options
             require 'ostruct'

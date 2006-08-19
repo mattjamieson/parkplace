@@ -186,6 +186,7 @@ module ParkPlace::Controllers
     class CTrackerIndex < R '/tracker'
         def get
             @torrents = torrent_list @input.info_hash
+            @transfer = TorrentPeer.sum :downloaded, :group => :torrent
             render :torrent_index
         end
     end
@@ -202,18 +203,24 @@ module ParkPlace::Views
                     thead do
                         tr do
                         th "Name"
+                        th "Size"
                         th "Seeders"
                         th "Leechers"
                         th "Downloads"
+                        th "Transferred"
+                        th "Since"
                         end
                     end
                     tbody do
                     torrents.each do |t|
                         tr do  
-                            td t.bit.name
+                            th t.bit.name
+                            td number_to_human_size(t.bit.obj.size)
                             td t.seeders
                             td t.leechers
                             td t.total
+                            td number_to_human_size(@transfer[t])
+                            # td t.metainfo.creation_date
                         end
                     end
                     end
