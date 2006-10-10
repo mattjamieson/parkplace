@@ -108,6 +108,7 @@ module ParkPlace
             end
 
             puts "** ParkPlace example is running at http://#{host}:#{port}/"
+            puts "** Visit http://#{host}:#{port}/control/ for the control center."
             config.join
         end
     end

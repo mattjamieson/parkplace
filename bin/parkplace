@@ -66,9 +66,9 @@ if num_users == 0
 end
 
 admin = ParkPlace::Models::User.find_by_login "admin"
-if num_users == 1 and admin and not admin.password == hmac_sha1( DEFAULT_PASSWORD, admin.secret )
+if num_users == 1 and admin and admin.password == hmac_sha1( DEFAULT_PASSWORD, admin.secret )
     puts "** Please login in with `admin' and password `#{DEFAULT_PASSWORD}'"
-    puts "** You should change the default password or delete the admin at soonest chance!"
+    puts "** You should change the default password for the admin at soonest chance!"
 end
 
 ParkPlace.serve(options.host, options.port)

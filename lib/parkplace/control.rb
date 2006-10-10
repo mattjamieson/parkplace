@@ -343,6 +343,7 @@ module ParkPlace::Views
     end
 
     def control_files
+        p "Click on a file name to get file and torrent details."
         table do
             caption { a(:href => R(CBuckets)) { self << "&larr; Buckets" } }
             thead do

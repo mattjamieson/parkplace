@@ -192,4 +192,9 @@ tbody th p {
 }
 .details {
     display: none;
+    padding-left: 12px;
+}
+.details p {
+    font-size: 10px;
+    line-height: 110%;
 }
