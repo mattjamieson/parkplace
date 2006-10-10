@@ -102,7 +102,7 @@ module ParkPlace::S3
             canonical[-1,0] = "x-amz-#{k}:#{v}"
         end
         @user = ParkPlace::Models::User.find_by_key key_s
-        if @user and secret_s != hmac_sha1(@user.secret, canonical * "\n")
+        if @user and secret_s != hmac_sha1(@user.secret, canonical.map{|v|v.to_s.strip} * "\n")
             raise BadAuthentication
         end
 
