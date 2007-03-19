@@ -7,6 +7,8 @@ require 'parkplace'
 DEFAULT_PASSWORD = 'pass@word1'
 DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
 
+#
+
 options = ParkPlace.options
 options.host = "127.0.0.1"
 options.port = 3002
@@ -33,12 +35,12 @@ opts = OptionParser.new do |opts|
 
     opts.separator ""
     opts.separator "Common options:"
-  
+
     opts.on_tail("-h", "--help", "Show this message") do
       puts opts
       exit
     end
-  
+
     # Another typical switch to print the version.
     opts.on_tail("--version", "Show version") do
       puts ParkPlace::VERSION
