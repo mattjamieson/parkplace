@@ -2,6 +2,10 @@
 $:.unshift "./lib"
 require 'optparse'
 $PARKPLACE_ACCESSORIES = true
+require 'rubygems'
+gem 'mongrel', '< 1.1'
+gem 'activesupport', '< 2.0'
+gem 'activerecord', '< 2.0'
 require 'parkplace'
 
 DEFAULT_PASSWORD = 'pass@word1'
