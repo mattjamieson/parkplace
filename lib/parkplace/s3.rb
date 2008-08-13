@@ -65,12 +65,34 @@ module ParkPlace::Controllers
             end
             slot_count = Slot.count :conditions => opts[:conditions]
             contents = Slot.find :all, opts
+            
+            if @input.delimiter
+              prefixes = contents.inject({}) do |hash, c|
+                prefix = c.name.sub(@input.prefix || '', '').split(@input.delimiter)[0]
+                if hash[prefix].nil?
+                  hash[prefix] = 1
+                else
+                  hash[prefix] += 1
+                end
+                hash
+              end
+            
+              common_prefixes = prefixes.inject([]) do |array, prefix|
+                array << (@input.prefix || '') + prefix[0] if prefix[1] > 1
+                array
+              end
+              contents = contents.reject do |c|
+                prefix = (@input.prefix || '') + c.name.sub(@input.prefix || '', '').split(@input.delimiter)[0]
+                common_prefixes.include? prefix
+              end
+            end
 
             xml do |x|
                 x.ListBucketResult :xmlns => "http://s3.amazonaws.com/doc/2006-03-01/" do
                     x.Name bucket.name
                     x.Prefix @input.prefix if @input.prefix
                     x.Marker @input.marker if @input.marker
+                    x.Delimiter @input.delimiter if @input.delimiter
                     x.MaxKeys @input['max-keys'] if @input['max-keys']
                     x.IsTruncated slot_count > contents.length + opts[:offset].to_i
                     contents.each do |c|
@@ -85,6 +107,13 @@ module ParkPlace::Controllers
                                 x.DisplayName c.owner.login
                             end
                         end
+                    end
+                    if common_prefixes
+                      common_prefixes.each do |p|
+                        x.CommonPrefixes do
+                          x.Prefix p
+                        end
+                      end
                     end
                 end
             end
