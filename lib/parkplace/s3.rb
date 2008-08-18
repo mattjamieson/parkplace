@@ -67,23 +67,25 @@ module ParkPlace::Controllers
             contents = Slot.find :all, opts
             
             if @input.delimiter
+              @input.prefix = '' if @input.prefix.nil?
+              
+              # Build a hash of { :prefix => content_key }. The prefix will not include the supplied @input.prefix.
               prefixes = contents.inject({}) do |hash, c|
-                prefix = c.name.sub(@input.prefix || '', '').split(@input.delimiter)[0]
-                if hash[prefix].nil?
-                  hash[prefix] = 1
-                else
-                  hash[prefix] += 1
-                end
+                prefix = get_prefix(c).to_sym
+                hash[prefix] = [] unless hash[prefix]
+                hash[prefix] << c.name
                 hash
               end
             
+              # The common prefixes are those with more than one element
               common_prefixes = prefixes.inject([]) do |array, prefix|
-                array << (@input.prefix || '') + prefix[0] if prefix[1] > 1
+                array << prefix[0].to_s if prefix[1].size > 1
                 array
               end
+              
+              # The contents are everything that doesn't have a common prefix
               contents = contents.reject do |c|
-                prefix = (@input.prefix || '') + c.name.sub(@input.prefix || '', '').split(@input.delimiter)[0]
-                common_prefixes.include? prefix
+                common_prefixes.include? get_prefix(c)
               end
             end
 
@@ -117,6 +119,11 @@ module ParkPlace::Controllers
                     end
                 end
             end
+        end
+
+        private
+        def get_prefix(c)
+          c.name.sub(@input.prefix, '').split(@input.delimiter)[0] + @input.delimiter
         end
     end
 
