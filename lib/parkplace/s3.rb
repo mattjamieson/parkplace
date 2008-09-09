@@ -151,11 +151,11 @@ module ParkPlace::Controllers
             fileinfo.mime_type = @env.HTTP_CONTENT_TYPE || "binary/octet-stream"
             fileinfo.disposition = @env.HTTP_CONTENT_DISPOSITION
             fileinfo.size = readlen 
-            fileinfo.md5 = md5.hexdigest
+            fileinfo.md5 = Base64.encode64(md5.digest).strip
 
             raise IncompleteBody if @env.HTTP_CONTENT_LENGTH.to_i != readlen
             if @env.HTTP_CONTENT_MD5
-                raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ /^[0-9a-fA-F]{32}$/
+                raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ /^(?:[0-9a-zA-Z+\/]{4})*={0,2}$/
                 raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
             end
 
