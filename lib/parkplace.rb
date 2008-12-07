@@ -6,6 +6,9 @@ require 'base64'
 require 'time'
 require 'md5'
 
+require 'active_record/acts/nested_set'
+ActiveRecord::Base.send :include, ActiveRecord::Acts::NestedSet
+
 Camping.goes :ParkPlace
 
 require 'parkplace/errors'
