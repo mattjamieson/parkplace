@@ -1,5 +1,5 @@
 class Time
-    def to_s
+    def to_default_s
         strftime("%B %d, %Y at %H:%M")
     end
 end
