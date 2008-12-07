@@ -37,6 +37,15 @@ opts = OptionParser.new do |opts|
         options.verbose = v
     end
 
+    opts.on("-u", "--debug", "Debug Mode") do |v|
+        begin
+          require 'ruby-debug'
+          Debugger.start
+        rescue LoadError
+        end
+        $DEBUG = v
+    end
+
     opts.separator ""
     opts.separator "Common options:"
 
