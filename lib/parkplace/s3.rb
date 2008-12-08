@@ -119,8 +119,17 @@ module ParkPlace::Controllers
 
             raise IncompleteBody if @env.HTTP_CONTENT_LENGTH.to_i != readlen
             if @env.HTTP_CONTENT_MD5
-                raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ /^(?:[0-9a-zA-Z+\/]{4})*={0,2}$/
-                raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
+              b64cs = /[0-9a-zA-Z+\/]/
+              re = /
+                ^
+                (?:#{b64cs}{4})*       # any four legal chars
+                (?:#{b64cs}{2}        # right-padded by up to two =s
+                 (?:#{b64cs}|=){2})?
+                $
+              /ox
+              
+              raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ re
+              raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
             end
 
             fileinfo.path = File.join(bucket_name, File.basename(temp_path))
