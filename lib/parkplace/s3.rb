@@ -65,12 +65,36 @@ module ParkPlace::Controllers
             end
             slot_count = Slot.count :conditions => opts[:conditions]
             contents = Slot.find :all, opts
+            
+            if @input.delimiter
+              @input.prefix = '' if @input.prefix.nil?
+              
+              # Build a hash of { :prefix => content_key }. The prefix will not include the supplied @input.prefix.
+              prefixes = contents.inject({}) do |hash, c|
+                prefix = get_prefix(c).to_sym
+                hash[prefix] = [] unless hash[prefix]
+                hash[prefix] << c.name
+                hash
+              end
+            
+              # The common prefixes are those with more than one element
+              common_prefixes = prefixes.inject([]) do |array, prefix|
+                array << prefix[0].to_s if prefix[1].size > 1
+                array
+              end
+              
+              # The contents are everything that doesn't have a common prefix
+              contents = contents.reject do |c|
+                common_prefixes.include? get_prefix(c)
+              end
+            end
 
             xml do |x|
                 x.ListBucketResult :xmlns => "http://s3.amazonaws.com/doc/2006-03-01/" do
                     x.Name bucket.name
                     x.Prefix @input.prefix if @input.prefix
                     x.Marker @input.marker if @input.marker
+                    x.Delimiter @input.delimiter if @input.delimiter
                     x.MaxKeys @input['max-keys'] if @input['max-keys']
                     x.IsTruncated slot_count > contents.length + opts[:offset].to_i
                     contents.each do |c|
@@ -86,8 +110,20 @@ module ParkPlace::Controllers
                             end
                         end
                     end
+                    if common_prefixes
+                      common_prefixes.each do |p|
+                        x.CommonPrefixes do
+                          x.Prefix p
+                        end
+                      end
+                    end
                 end
             end
+        end
+
+        private
+        def get_prefix(c)
+          c.name.sub(@input.prefix, '').split(@input.delimiter)[0] + @input.delimiter
         end
     end
 
