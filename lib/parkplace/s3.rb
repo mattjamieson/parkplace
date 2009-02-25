@@ -58,7 +58,7 @@ module ParkPlace::Controllers
             @input.marker = '' unless @input.marker
             @input.prefix = '' unless @input.prefix
             
-            opts = {:conditions => ['parent_id = ?', bucket.id], :order => "name"}
+            opts = {:conditions => ['parent_id = ?', bucket.id], :order => "name", :include => :owner}
 
             if @input.prefix && @input.prefix.length > 0
                 opts[:conditions].first << ' AND name LIKE ?'
