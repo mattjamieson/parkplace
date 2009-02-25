@@ -152,7 +152,7 @@ module ParkPlace::Controllers
               
               fileinfo = FileInfo.new
               [:mime_type, :disposition, :size, :md5].each { |a| fileinfo.send("#{a}=", source_slot.obj.send(a)) }
-              fileinfo.path = File.join(bucket_name, File.basename(source_slot.obj.path))
+              fileinfo.path = File.join(bucket_name, rand(10000).to_s(36) + '_' + File.basename(source_slot.obj.path))
               fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
               file_path = File.join(STORAGE_PATH, fileinfo.path)
               FileUtils.mkdir_p(File.dirname(file_path))
@@ -192,7 +192,7 @@ module ParkPlace::Controllers
                 raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
               end
 
-              fileinfo.path = File.join(bucket_name, File.basename(temp_path))
+              fileinfo.path = File.join(bucket_name, rand(10000).to_s(36) + '_' + File.basename(temp_path))
               fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
               file_path = File.join(STORAGE_PATH, fileinfo.path)
               FileUtils.mkdir_p(File.dirname(file_path))
