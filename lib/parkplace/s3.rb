@@ -143,45 +143,61 @@ module ParkPlace::Controllers
             only_can_write bucket
             raise MissingContentLength unless @env.HTTP_CONTENT_LENGTH
 
-            temp_path = @in.path rescue nil
-            readlen = 0
-            md5 = MD5.new
-            Tempfile.open(File.basename(oid)) do |tmpf|
-                temp_path ||= tmpf.path
-                tmpf.binmode
-                while part = @in.read(BUFSIZE)
-                    readlen += part.size
-                    md5 << part
-                    tmpf << part unless @in.is_a?(Tempfile)
-                end
-            end
+            if @env.HTTP_X_AMZ_COPY_SOURCE.to_s =~ /\/(.+?)\/(.+)/
+              source_bucket_name = $1
+              source_oid = $2
 
-            fileinfo = FileInfo.new
-            fileinfo.mime_type = @env.HTTP_CONTENT_TYPE || "binary/octet-stream"
-            fileinfo.disposition = @env.HTTP_CONTENT_DISPOSITION
-            fileinfo.size = readlen 
-            fileinfo.md5 = Base64.encode64(md5.digest).strip
-
-            raise IncompleteBody if @env.HTTP_CONTENT_LENGTH.to_i != readlen
-            if @env.HTTP_CONTENT_MD5
-              b64cs = /[0-9a-zA-Z+\/]/
-              re = /
-                ^
-                (?:#{b64cs}{4})*       # any four legal chars
-                (?:#{b64cs}{2}        # right-padded by up to two =s
-                 (?:#{b64cs}|=){2})?
-                $
-              /ox
+              source_slot = ParkPlace::Models::Bucket.find_root(source_bucket_name).find_slot(source_oid)
+              only_can_read source_slot
               
-              raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ re
-              raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
-            end
+              fileinfo = FileInfo.new
+              [:mime_type, :disposition, :size, :md5].each { |a| fileinfo.send("#{a}=", source_slot.obj.send(a)) }
+              fileinfo.path = File.join(bucket_name, File.basename(source_slot.obj.path))
+              fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
+              file_path = File.join(STORAGE_PATH, fileinfo.path)
+              FileUtils.mkdir_p(File.dirname(file_path))
+              FileUtils.cp(File.join(STORAGE_PATH, source_slot.obj.path), file_path)
+            else
+              temp_path = @in.path rescue nil
+              readlen = 0
+              md5 = MD5.new
+              Tempfile.open(File.basename(oid)) do |tmpf|
+                  temp_path ||= tmpf.path
+                  tmpf.binmode
+                  while part = @in.read(BUFSIZE)
+                      readlen += part.size
+                      md5 << part
+                      tmpf << part unless @in.is_a?(Tempfile)
+                  end
+              end
 
-            fileinfo.path = File.join(bucket_name, File.basename(temp_path))
-            fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
-            file_path = File.join(STORAGE_PATH, fileinfo.path)
-            FileUtils.mkdir_p(File.dirname(file_path))
-            FileUtils.mv(temp_path, file_path)
+              fileinfo = FileInfo.new
+              fileinfo.mime_type = @env.HTTP_CONTENT_TYPE || "binary/octet-stream"
+              fileinfo.disposition = @env.HTTP_CONTENT_DISPOSITION
+              fileinfo.size = readlen 
+              fileinfo.md5 = Base64.encode64(md5.digest).strip
+
+              raise IncompleteBody if @env.HTTP_CONTENT_LENGTH.to_i != readlen
+              if @env.HTTP_CONTENT_MD5
+                b64cs = /[0-9a-zA-Z+\/]/
+                re = /
+                  ^
+                  (?:#{b64cs}{4})*       # any four legal chars
+                  (?:#{b64cs}{2}        # right-padded by up to two =s
+                   (?:#{b64cs}|=){2})?
+                  $
+                /ox
+              
+                raise InvalidDigest unless @env.HTTP_CONTENT_MD5 =~ re
+                raise BadDigest unless fileinfo.md5 == @env.HTTP_CONTENT_MD5
+              end
+
+              fileinfo.path = File.join(bucket_name, File.basename(temp_path))
+              fileinfo.path.succ! while File.exists?(File.join(STORAGE_PATH, fileinfo.path))
+              file_path = File.join(STORAGE_PATH, fileinfo.path)
+              FileUtils.mkdir_p(File.dirname(file_path))
+              FileUtils.mv(temp_path, file_path)
+            end
 
             slot = nil
             meta = @meta.empty? ? nil : {}.merge(@meta)
