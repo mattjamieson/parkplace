@@ -51,14 +51,23 @@ module ParkPlace::Controllers
             if @input.has_key? 'torrent'
                 return torrent(bucket)
             end
+            
+            # Patch from Alan Wootton -- used to be ticket 12 in Trac:
+            #   Let's be more like amazon and always have these 3 things
+            @input['max-keys'] = 1000 unless @input['max-keys']
+            @input.marker = '' unless @input.marker
+            @input.prefix = '' unless @input.prefix
+            
             opts = {:conditions => ['parent_id = ?', bucket.id], :order => "name"}
-            limit = nil
-            if @input.prefix
+
+            if @input.prefix && @input.prefix.length > 0
                 opts[:conditions].first << ' AND name LIKE ?'
                 opts[:conditions] << "#{@input.prefix}%"
             end
-            if @input.marker
-                opts[:offset] = @input.marker.to_i
+            opts[:offset] = 0
+            if @input.marker && @input.marker.length > 0
+                opts[:conditions].first << ' AND name > ?'
+                opts[:conditions] << "#{@input.marker}"
             end
             if @input['max-keys']
                 opts[:limit] = @input['max-keys'].to_i
