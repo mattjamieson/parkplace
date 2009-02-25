@@ -188,7 +188,10 @@ module ParkPlace::Controllers
             owner_id = @user ? @user.id : bucket.owner_id
             begin
                 slot = bucket.find_slot(oid)
+                prev_path = slot.obj.path
                 slot.update_attributes(:owner_id => owner_id, :meta => meta, :obj => fileinfo)
+                # Remove the old file instead of leaving it lying around.
+                FileUtils.rm(File.join(STORAGE_PATH,prev_path)) unless prev_path == fileinfo.path
             rescue NoSuchKey
                 slot = Slot.create(:name => oid, :owner_id => owner_id, :meta => meta, :obj => fileinfo)
                 bucket.add_child(slot)
