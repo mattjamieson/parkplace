@@ -29,7 +29,7 @@ module ParkPlace::Controllers
             bucket = Bucket.find_root(bucket_name)
             only_owner_of bucket
             bucket.grant(requested_acl)
-            raise BucketAlreadyExists
+            r(200, '', 'Location' => @env.PATH_INFO, 'Content-Length' => 0)
         rescue NoSuchBucket
             Bucket.create(:name => bucket_name, :owner_id => @user.id).grant(requested_acl)
             r(200, '', 'Location' => @env.PATH_INFO, 'Content-Length' => 0)
