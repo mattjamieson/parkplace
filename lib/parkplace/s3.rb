@@ -221,6 +221,8 @@ module ParkPlace::Controllers
             @slot = bucket.find_slot(oid)
             @slot.destroy
             r(204, '')
+        rescue NoSuchKey
+          r(204, '')
         end
     end
 end
