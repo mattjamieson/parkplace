@@ -1,4 +1,5 @@
 require 'rubygems'
+require 'metaid'
 require 'camping'
 require 'camping/session'
 require 'digest/sha1'
@@ -6,6 +7,7 @@ require 'base64'
 require 'time'
 require 'md5'
 
+require 'active_record'
 require 'active_record/acts/nested_set'
 ActiveRecord::Base.send :include, ActiveRecord::Acts::NestedSet
 

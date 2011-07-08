@@ -3,15 +3,10 @@ $:.unshift "./lib"
 require 'optparse'
 $PARKPLACE_ACCESSORIES = true
 require 'rubygems'
-gem 'mongrel'
-gem 'activesupport', '~> 2.2.0'
-gem 'activerecord',  '~> 2.2.0'
 require 'parkplace'
 
 DEFAULT_PASSWORD = 'pass@word1'
 DEFAULT_SECRET = 'OtxrzxIsfpFjA7SwPzILwy8Bw21TLhquhboDYROV'
-
-#
 
 options = ParkPlace.options
 options.host = "127.0.0.1"
