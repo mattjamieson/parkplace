@@ -244,16 +244,23 @@ module ParkPlace::Views
         opts[:class] = (@env.PATH_INFO =~ /^#{opts[:href]}/ ? "active" : "inactive")
         opts
     end
+
+    def layout
+      html do
+        head do
+          script "", :language => 'javascript', :src => R(CStatic, 'js/jquery.js')
+          # script :language => 'javascript', :src => R(CStatic, 'js/support.js')
+          style "@import '#{self / R(CStatic, 'css/control.css')}';", :type => 'text/css'
+        end
+        body do
+          self << yield
+        end
+      end
+    end
+
     def control(str, view)
-        html do
-            head do
-                title { "Park Place Control Center &raquo; " + str }
-                script :language => 'javascript', :src => R(CStatic, 'js/jquery.js')
-                # script :language => 'javascript', :src => R(CStatic, 'js/support.js')
-                style "@import '#{self / R(CStatic, 'css/control.css')}';", :type => 'text/css'
-            end
-            body do
-                div.page! do
+          div.page! do
+
                     if @user and not @login
                     div.menu do
                         ul do
@@ -271,9 +278,7 @@ module ParkPlace::Views
                     div.content! do
                         __send__ "control_#{view}"
                     end
-                end
-            end
-        end
+          end
     end
 
     def control_login
